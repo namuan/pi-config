@@ -15,8 +15,6 @@ and a permission gate.
   cycle in isolated subagents and returns findings.
 - `extensions/` — `permission-gate.ts` (blocks git push/commit, `.env` reads,
   secret-file access) and `subagent/` (isolated pi subprocess delegation)
-- `tools/migrate-opencode-agents.py` — regenerates `agents/` and `prompts/`
-  from the opencode config in `~/.config/opencode`
 
 ## Install
 
