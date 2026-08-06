@@ -28,6 +28,11 @@ MODEL_MAP = {
     "opencode-go/mimo-v2.5-pro": "opencode-go/mimo-v2.5-pro",
 }
 
+# Only regenerate these agents; everything else is intentionally dropped.
+# Update this if you want to keep more of the opencode lineup.
+def KEEP(name: str) -> bool:
+    return name.startswith("axiom-") or name.startswith("tdd-")
+
 # Read-only agents: no write/edit tools
 READ_ONLY = {"reviewer", "research", "explore", "vision", "planner", "tdd-reviewer",
              "docs-architecture", "docs-feature", "docs-judge", "docs-mapper",
@@ -100,9 +105,13 @@ def main():
     # 1. agent definitions from agents/*.md (+ explore/general from agent-prompts)
     agent_bodies: dict[str, str] = {}
     for src in sorted(SRC_AGENTS.glob("*.md")):
+        if not KEEP(src.stem):
+            continue
         fm, body = parse_frontmatter(src.read_text())
         agent_bodies[src.stem] = body
     for name in ("explore", "general"):
+        if not KEEP(name):
+            continue
         src = SRC_PROMPTS / f"{name}.md"
         if src.exists():
             _, body = parse_frontmatter(src.read_text())
@@ -118,7 +127,7 @@ def main():
         written += 1
 
     # 2. prompts: delegation launchers for agents, verbatim for the rest
-    prompt_files = sorted(SRC_AGENTS.glob("*.md")) + sorted(SRC_PROMPTS.glob("*.md"))
+    prompt_files = [p for p in list(SRC_AGENTS.glob("*.md")) + list(SRC_PROMPTS.glob("*.md")) if KEEP(p.stem)]
     for src in prompt_files:
         name = src.stem
         fm, body = parse_frontmatter(src.read_text())
@@ -131,6 +140,16 @@ def main():
         written += 1
 
     print(f"Wrote {written} files: {len(agent_bodies)} agents, {len(prompt_files)} prompts -> {AGENTS_DEST}, {PROMPTS_DEST}")
+
+    # prune files that are no longer generated (keep dest dirs mirroring the source)
+    kept_agents = set(agent_bodies)
+    kept_prompts = {p.stem for p in prompt_files}
+    for f in AGENTS_DEST.glob("*.md"):
+        if f.stem not in kept_agents:
+            f.unlink()
+    for f in PROMPTS_DEST.glob("*.md"):
+        if f.stem not in kept_prompts:
+            f.unlink()
 
 
 if __name__ == "__main__":
