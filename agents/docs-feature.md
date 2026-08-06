@@ -1,6 +1,6 @@
 ---
 name: docs-feature
-description: "Extracts user-facing features from the codebase"
+description: Extracts user-facing features from the codebase
 tools: read, grep, find, ls, bash
 ---
 

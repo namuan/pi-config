@@ -1,6 +1,6 @@
 ---
 name: docs-orchestrator
-description: "Coordinates multi-agent codebase analysis workflow"
+description: Coordinates multi-agent codebase analysis workflow
 ---
 
 You are the Orchestrator Agent.

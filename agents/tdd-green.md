@@ -1,6 +1,6 @@
 ---
 name: tdd-green
-description: "Green-phase subagent in the TDD cycle. Writes the minimal implementation code to make the failing test pass, confirms all tests pass, and reports back. Only writes the code needed to satisfy the test -- no extras, no scope creep. DELEGATE to it from the tdd-lead agent."
+description: Green-phase subagent in the TDD cycle. Writes the minimal implementation code to make the failing test pass, confirms all tests pass, and reports back. Only writes the code needed to satisfy the test -- no extras, no scope creep. DELEGATE to it from the tdd-lead agent.
 model: opencode-go/deepseek-v4-flash
 ---
 

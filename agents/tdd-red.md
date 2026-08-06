@@ -1,6 +1,6 @@
 ---
 name: tdd-red
-description: "Red-phase subagent in the TDD cycle. Writes a failing test as specified by the lead, confirms it fails with the expected message, and reports back. Never writes implementation code -- only tests. DELEGATE to it from the tdd-lead agent."
+description: Red-phase subagent in the TDD cycle. Writes a failing test as specified by the lead, confirms it fails with the expected message, and reports back. Never writes implementation code -- only tests. DELEGATE to it from the tdd-lead agent.
 model: opencode-go/deepseek-v4-flash
 ---
 

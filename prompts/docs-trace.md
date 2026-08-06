@@ -1,27 +1,13 @@
 ---
-description: "Traces execution flows through the system"
-x-opencode-mode: "subagent"
+description: Traces execution flows through the system
+argument-hint: "[task]"
 ---
 
-You are the Trace Agent.
+Delegate to the docs-trace subagent.
 
-## Tasks
+Call the subagent tool exactly once with:
+- agent: "docs-trace"
+- task: "$@"
 
-Trace 2–3 real flows:
-
-- entry point
-- control flow
-- DB interactions
-- external calls
-
-## Output
-
-- Step-by-step execution traces
-
-## Output Location
-
-Write all output to `docs/code-analysis/` (create if needed). Prefix: `trace-*`
-
-## Rules
-
-- Follow actual code paths only
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

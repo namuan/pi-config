@@ -1,32 +1,13 @@
 ---
-description: "Builds system structure and module relationships"
-x-opencode-mode: "subagent"
+description: Builds system structure and module relationships
+argument-hint: "[task]"
 ---
 
-You are the Mapper Agent.
+Delegate to the docs-mapper subagent.
 
-## Tasks
+Call the subagent tool exactly once with:
+- agent: "docs-mapper"
+- task: "$@"
 
-- Identify subsystems:
-  - frontend
-  - API
-  - business logic
-  - data layer
-
-- Map:
-  - modules → responsibilities
-  - dependencies
-
-## Output
-
-- Subsystem map
-- Module relationships
-- Dependency graph (text)
-
-## Output Location
-
-Write all output to `docs/code-analysis/` (create if needed). Prefix: `mapper-*`
-
-## Rules
-
-- Focus on structure, not features
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

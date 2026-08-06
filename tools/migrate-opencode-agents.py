@@ -1,28 +1,58 @@
 #!/usr/bin/env python3
-"""Migrate opencode agents (and agent-prompts) to Pi prompt templates.
+"""Regenerate the pi config from the opencode config in ~/.config/opencode.
 
-opencode agent file -> ~/.pi/agent/prompts/<name>.md
-  - `description` frontmatter maps 1:1 (Pi shows it in /autocomplete)
-  - opencode-only keys (mode, model, temperature, color, permission) are
-    preserved as x-opencode-* frontmatter keys. Pi ignores unknown keys,
-    so they are harmless metadata; the template body is unchanged.
+Outputs:
+  ~/.pi/agent/agents/<name>.md   — subagent definitions (name, description,
+                                   optional model/tools, body = agent prompt)
+  ~/.pi/agent/prompts/<name>.md  — slash-command templates. For every agent a
+                                   thin *delegation launcher* that tells the
+                                   main model to call the `subagent` tool.
+                                   Prompt files with no matching agent
+                                   (compaction, default, default-plan) are
+                                   copied verbatim.
 """
 import re
-import shutil
 from pathlib import Path
 
 SRC_AGENTS = Path.home() / ".config/opencode/agents"
 SRC_PROMPTS = Path.home() / ".config/opencode/agent-prompts"
-DEST = Path.home() / ".pi/agent/prompts"
+AGENTS_DEST = Path.home() / ".pi/agent/agents"
+PROMPTS_DEST = Path.home() / ".pi/agent/prompts"
 
-# Keys we translate or preserve
-KNOWN = {"description", "argument-hint"}
-PRESERVE = {"mode", "model", "temperature", "color"}
+# model: only map IDs that exist in pi's model store; omit otherwise
+MODEL_MAP = {
+    "openai/gpt-5.6-terra": "openai/gpt-5.6-terra",
+    "openai/gpt-5.6-sol": "openai/gpt-5.6-sol",
+    "opencode-go/deepseek-v4-flash": "opencode-go/deepseek-v4-flash",
+    "opencode-go/deepseek-v4-pro": "opencode-go/deepseek-v4-pro",
+    "opencode-go/mimo-v2.5-pro": "opencode-go/mimo-v2.5-pro",
+}
+
+# Read-only agents: no write/edit tools
+READ_ONLY = {"reviewer", "research", "explore", "vision", "planner", "tdd-reviewer",
+             "docs-architecture", "docs-feature", "docs-judge", "docs-mapper",
+             "docs-scout", "docs-trace"}
+
+# Fallback descriptions for prompt files without opencode frontmatter
+FALLBACK_DESC = {
+    "explore": "Code exploration sub-agent: glob/regex search, returns findings to master",
+    "general": "Sub-agent executor: executes tasks from the master agent without replanning",
+    "compaction": "Summarizes conversation history for coding sessions (anchored summary)",
+    "default": "Main agent prompt (build): English, maximum reasoning effort",
+    "default-plan": "Delete task to Planner Agent",
+}
+
+LAUNCHER = """Delegate to the {name} subagent.
+
+Call the subagent tool exactly once with:
+- agent: "{name}"
+- task: "$@"
+
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error."""
 
 
 def parse_frontmatter(text: str):
-    """Return (frontmatter_dict, body). Lenient YAML-subset parse:
-    handles `key: value`, `key: "value"`, and `key:` scalars (no nested maps)."""
     m = re.match(r"^---\s*\n(.*?)\n---\s*\n?", text, re.S)
     if not m:
         return {}, text
@@ -30,28 +60,33 @@ def parse_frontmatter(text: str):
     for line in m.group(1).splitlines():
         mm = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
         if mm and not line.startswith(" "):
-            key, val = mm.group(1), mm.group(2).strip()
-            val = re.sub(r'^"(.*)"$', r"\1", val)
-            fm[key] = val
+            fm[mm.group(1)] = re.sub(r'^"(.*)"$', r"\1", mm.group(2).strip())
     return fm, text[m.end():]
 
 
-def convert(src: Path) -> str:
-    """Return the Pi template content for an opencode agent/prompt file."""
-    text = src.read_text()
-    fm, body = parse_frontmatter(text)
-    out = []
+def yaml_quote(value: str) -> str:
+    """Quote a YAML plain scalar when it would confuse the parser (colons, quotes)."""
+    if re.search(r'["\\]', value) or ": " in value:
+        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return value
+
+
+def agent_definition(name: str, desc: str, model: str | None, tools: str | None, body: str) -> str:
+    out = ["---", f"name: {name}", f"description: {yaml_quote(desc)}"]
+    if model:
+        out.append(f"model: {model}")
+    if tools:
+        out.append(f"tools: {tools}")
     out.append("---")
-    desc = fm.get("description", "").strip()
-    if desc:
-        out.append(f"description: {desc}")
-    for key in PRESERVE:
-        if fm.get(key):
-            out.append(f"x-opencode-{key}: {fm[key]}")
-    if not desc and not any(fm.get(k) for k in PRESERVE):
-        # agent-prompts files: no frontmatter at all; Pi falls back to first line
-        first = next((l.strip() for l in body.splitlines() if l.strip()), "")
-        out.append(f"description: {first[:60]}{'...' if len(first) > 60 else ''}")
+    out.append("")
+    out.append(body.rstrip())
+    return "\n".join(out) + "\n"
+
+
+def prompt_template(desc: str, body: str, argument_hint: str | None = None) -> str:
+    out = ["---", f"description: {yaml_quote(desc)}"]
+    if argument_hint:
+        out.append(f'argument-hint: "{argument_hint}"')
     out.append("---")
     out.append("")
     out.append(body.rstrip())
@@ -59,17 +94,43 @@ def convert(src: Path) -> str:
 
 
 def main():
-    DEST.mkdir(parents=True, exist_ok=True)
-    converted = []
+    AGENTS_DEST.mkdir(parents=True, exist_ok=True)
+    PROMPTS_DEST.mkdir(parents=True, exist_ok=True)
+
+    # 1. agent definitions from agents/*.md (+ explore/general from agent-prompts)
+    agent_bodies: dict[str, str] = {}
     for src in sorted(SRC_AGENTS.glob("*.md")):
-        dst = DEST / src.name
-        dst.write_text(convert(src))
-        converted.append(dst)
-    for src in sorted(SRC_PROMPTS.glob("*.md")):
-        dst = DEST / src.name
-        dst.write_text(convert(src))
-        converted.append(dst)
-    print(f"Wrote {len(converted)} templates to {DEST}")
+        fm, body = parse_frontmatter(src.read_text())
+        agent_bodies[src.stem] = body
+    for name in ("explore", "general"):
+        src = SRC_PROMPTS / f"{name}.md"
+        if src.exists():
+            _, body = parse_frontmatter(src.read_text())
+            agent_bodies[name] = body
+
+    written = 0
+    for name, body in sorted(agent_bodies.items()):
+        fm, _ = parse_frontmatter((SRC_AGENTS / f"{name}.md").read_text()) if (SRC_AGENTS / f"{name}.md").exists() else ({}, "")
+        desc = fm.get("description", "").strip() or FALLBACK_DESC.get(name, name)
+        model = MODEL_MAP.get(fm.get("model", ""))
+        tools = "read, grep, find, ls, bash" if name in READ_ONLY else None
+        (AGENTS_DEST / f"{name}.md").write_text(agent_definition(name, desc, model, tools, body))
+        written += 1
+
+    # 2. prompts: delegation launchers for agents, verbatim for the rest
+    prompt_files = sorted(SRC_AGENTS.glob("*.md")) + sorted(SRC_PROMPTS.glob("*.md"))
+    for src in prompt_files:
+        name = src.stem
+        fm, body = parse_frontmatter(src.read_text())
+        desc = fm.get("description", "").strip() or FALLBACK_DESC.get(name, "")
+        if name in agent_bodies:
+            content = prompt_template(desc, LAUNCHER.format(name=name), argument_hint="[task]")
+        else:
+            content = prompt_template(desc or next((l.strip() for l in body.splitlines() if l.strip()), ""), body)
+        (PROMPTS_DEST / f"{name}.md").write_text(content)
+        written += 1
+
+    print(f"Wrote {written} files: {len(agent_bodies)} agents, {len(prompt_files)} prompts -> {AGENTS_DEST}, {PROMPTS_DEST}")
 
 
 if __name__ == "__main__":

@@ -9,12 +9,15 @@ and a permission gate.
 - `agents/` — subagent definitions for the `subagent` tool (orchestrator,
   planner, reviewer, sidekick, design, research, TDD red-green-refactor cycle,
   docs analysis, axiom scout/sage router, explore, general)
-- `prompts/` — slash-command prompt templates, type `/` in pi to use them
-  (`/orchestrator`, `/reviewer`, `/tdd-lead`, `/docs-*`, ...)
+- `prompts/` — slash-command templates, type `/` in pi to use them. Each one
+  is a thin *delegation launcher* that tells the main model to call the
+  `subagent` tool for the matching agent: `/reviewer <task>` runs the review
+  in an isolated subagent and returns findings. (`compaction`, `default`,
+  `default-plan` are kept verbatim — they have no matching agent.)
 - `extensions/` — `permission-gate.ts` (blocks git push/commit, `.env` reads,
   secret-file access) and `subagent/` (isolated pi subprocess delegation)
 - `tools/migrate-opencode-agents.py` — regenerates `agents/` and `prompts/`
-  from the opencode config
+  from the opencode config in `~/.config/opencode`
 
 ## Install
 

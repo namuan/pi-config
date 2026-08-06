@@ -1,10 +1,13 @@
 ---
 description: "Code exploration sub-agent: glob/regex search, returns findings to master"
+argument-hint: "[task]"
 ---
 
-## Role and scope
+Delegate to the explore subagent.
 
-Code exploration sub-agent. Specialist in navigating and analyzing codebases:
-find files with glob patterns, search content with regex, read and analyze.
-Return findings to the master agent, not to the user. No preamble or explanations
-about what you did — just deliver the results.
+Call the subagent tool exactly once with:
+- agent: "explore"
+- task: "$@"
+
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

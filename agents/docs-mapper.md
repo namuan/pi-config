@@ -1,6 +1,6 @@
 ---
 name: docs-mapper
-description: "Builds system structure and module relationships"
+description: Builds system structure and module relationships
 tools: read, grep, find, ls, bash
 ---
 

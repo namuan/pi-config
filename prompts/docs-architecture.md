@@ -1,26 +1,13 @@
 ---
-description: "Infers system architecture and design patterns"
-x-opencode-mode: "subagent"
+description: Infers system architecture and design patterns
+argument-hint: "[task]"
 ---
 
-You are the Architecture Agent.
+Delegate to the docs-architecture subagent.
 
-## Tasks
+Call the subagent tool exactly once with:
+- agent: "docs-architecture"
+- task: "$@"
 
-- Identify architecture style
-- Evaluate:
-  - modularity
-  - coupling
-  - layering
-
-- Detect patterns:
-  - MVC, clean, hexagonal
-
-## Output
-
-- Architecture classification
-- Strengths / weaknesses
-
-## Output Location
-
-Write all output to `docs/code-analysis/` (create if needed). Prefix: `architecture-*`
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

@@ -1,6 +1,6 @@
 ---
 name: tdd-refactor
-description: "Refactor-phase subagent in the TDD cycle. Improves the code written in the green phase without changing behavior. Removes duplication, clarifies names, simplifies logic, extracts helpers -- while keeping all tests green. DELEGATE to it from the tdd-lead agent."
+description: Refactor-phase subagent in the TDD cycle. Improves the code written in the green phase without changing behavior. Removes duplication, clarifies names, simplifies logic, extracts helpers -- while keeping all tests green. DELEGATE to it from the tdd-lead agent.
 model: opencode-go/deepseek-v4-flash
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: docs-scout
-description: "Maps repository structure and identifies key entry points"
+description: Maps repository structure and identifies key entry points
 tools: read, grep, find, ls, bash
 ---
 

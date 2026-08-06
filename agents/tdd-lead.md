@@ -1,6 +1,6 @@
 ---
 name: tdd-lead
-description: "TDD orchestrator. Accepts a feature request or bug report, plans the Red-Green-Refactor cycle, and delegates each phase to a specialist subagent. Cannot edit files -- only plans and delegates. After each cycle, a reviewer verifies the work. Repeats until the task is complete."
+description: TDD orchestrator. Accepts a feature request or bug report, plans the Red-Green-Refactor cycle, and delegates each phase to a specialist subagent. Cannot edit files -- only plans and delegates. After each cycle, a reviewer verifies the work. Repeats until the task is complete.
 model: opencode-go/deepseek-v4-pro
 ---
 

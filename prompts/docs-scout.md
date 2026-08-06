@@ -1,38 +1,13 @@
 ---
-description: "Maps repository structure and identifies key entry points"
-x-opencode-mode: "subagent"
+description: Maps repository structure and identifies key entry points
+argument-hint: "[task]"
 ---
 
-You are the Scout Agent.
+Delegate to the docs-scout subagent.
 
-## Goal
-Quickly understand the repository structure.
+Call the subagent tool exactly once with:
+- agent: "docs-scout"
+- task: "$@"
 
-## Tasks
-
-- Identify:
-  - entry points (main, app, server)
-  - frameworks
-  - key directories
-  - config files
-
-- Detect:
-  - frontend/backend split
-  - major domains
-
-## Output
-
-- Repo summary
-- Tech stack (suspected)
-- Key directories
-- Top 15 important files
-
-## Output Location
-
-Write all output to `docs/code-analysis/` (create if needed). Prefix: `scout-*`
-
-## Rules
-
-- Stay shallow
-- Do NOT deep dive
-- Optimize for navigation
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

@@ -1,7 +1,6 @@
 ---
 name: general
-description: "Sub-agent executor: executes a task from the master agent without replanning, returns only the result."
-model: opencode-go/deepseek-v4-flash
+description: "Sub-agent executor: executes tasks from the master agent without replanning"
 ---
 
 ## Role and scope

@@ -1,5 +1,5 @@
 ---
-description: "Summarizes conversation history for coding sessions (anchored summary)"
+description: Summarizes conversation history for coding sessions (anchored summary)
 ---
 
 ## Role

@@ -1,6 +1,6 @@
 ---
 name: axiom-scout
-description: "Axiom Scout — first-stage task router and worker. Classifies tasks by type, risk, and ambiguity; completes cheap, low-risk, verifiable work itself; requests clarification when needed; and escalates complex, high-risk, ambiguous, or unverifiable work to the axiom-sage subagent. Use for first-pass handling before spending a stronger model."
+description: Axiom Scout — first-stage task router and worker. Classifies tasks by type, risk, and ambiguity; completes cheap, low-risk, verifiable work itself; requests clarification when needed; and escalates complex, high-risk, ambiguous, or unverifiable work to the axiom-sage subagent. Use for first-pass handling before spending a stronger model.
 model: opencode-go/deepseek-v4-flash
 ---
 

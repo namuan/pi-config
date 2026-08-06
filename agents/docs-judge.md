@@ -1,6 +1,6 @@
 ---
 name: docs-judge
-description: "Evaluates engineering quality and risks"
+description: Evaluates engineering quality and risks
 tools: read, grep, find, ls, bash
 ---
 

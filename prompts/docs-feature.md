@@ -1,30 +1,13 @@
 ---
-description: "Extracts user-facing features from the codebase"
-x-opencode-mode: "subagent"
+description: Extracts user-facing features from the codebase
+argument-hint: "[task]"
 ---
 
-You are the Feature Agent.
+Delegate to the docs-feature subagent.
 
-## Tasks
+Call the subagent tool exactly once with:
+- agent: "docs-feature"
+- task: "$@"
 
-Identify ALL major features.
-
-For each feature:
-- entry point (route/UI)
-- core logic files
-- data involved
-- side effects (DB, APIs, jobs)
-
-## Output
-
-- Feature list
-- Feature → code mapping
-
-## Output Location
-
-Write all output to `docs/code-analysis/` (create if needed). Prefix: `feature-*`
-
-## Rules
-
-- Think like a product engineer
-- Avoid vague features
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

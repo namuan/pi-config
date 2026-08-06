@@ -1,6 +1,6 @@
 ---
 name: docs-architecture
-description: "Infers system architecture and design patterns"
+description: Infers system architecture and design patterns
 tools: read, grep, find, ls, bash
 ---
 

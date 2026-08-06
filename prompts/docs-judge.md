@@ -1,28 +1,13 @@
 ---
-description: "Evaluates engineering quality and risks"
-x-opencode-mode: "subagent"
+description: Evaluates engineering quality and risks
+argument-hint: "[task]"
 ---
 
-You are the Judge Agent.
+Delegate to the docs-judge subagent.
 
-## Tasks
+Call the subagent tool exactly once with:
+- agent: "docs-judge"
+- task: "$@"
 
-Score (1–10):
-
-- maintainability
-- scalability
-- testability
-
-Identify:
-- risks
-- tech debt
-- bottlenecks
-
-## Output
-
-- Scorecard
-- Recommendations
-
-## Output Location
-
-Write all output to `docs/code-analysis/` (create if needed). Prefix: `judge-*`
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

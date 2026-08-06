@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: "Plans, delegates, reviews, and verifies code changes through focused subagents"
+description: Plans, delegates, reviews, and verifies code changes through focused subagents
 model: opencode-go/deepseek-v4-pro
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: docs-trace
-description: "Traces execution flows through the system"
+description: Traces execution flows through the system
 tools: read, grep, find, ls, bash
 ---
 

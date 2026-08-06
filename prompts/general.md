@@ -1,9 +1,13 @@
 ---
 description: "Sub-agent executor: executes tasks from the master agent without replanning"
+argument-hint: "[task]"
 ---
 
-## Role and scope
+Delegate to the general subagent.
 
-Sub-agent executor. You receive a task from the master agent. Execute it without replanning.
-Return only the result to the master, with no explanations or preamble.
-Do not dump entire files in the result; reference paths instead.
+Call the subagent tool exactly once with:
+- agent: "general"
+- task: "$@"
+
+If no task was provided, ask the user what they want to delegate before calling the tool.
+Report the subagent's final output back to the user; if delegation fails, show the error.

@@ -1,6 +1,6 @@
 ---
 name: explore
-description: "Code exploration sub-agent: finds files with glob patterns, searches content with regex, reads and analyzes. Returns findings to the master agent."
+description: "Code exploration sub-agent: glob/regex search, returns findings to master"
 tools: read, grep, find, ls, bash
 ---
 
