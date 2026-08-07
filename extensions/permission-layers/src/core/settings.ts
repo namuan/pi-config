@@ -1,68 +1,58 @@
-/**
- * Settings persistence - load/save global permission level, mode, and config
- */
-
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import * as path from "node:path";
-import type { PermissionConfig } from "./interfaces";
-import { SettingsManager } from "./manager";
-import type { PermissionLevel, PermissionMode } from "./types";
-import { LEVELS, PERMISSION_MODES } from "./types";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type {
+  PermissionConfig,
+  PermissionOverrides,
+  PermissionPrefixMapping,
+} from "./interfaces";
 
-const getSettingsPath = () => path.join(getAgentDir(), "settings.json");
-const settingsManager = new SettingsManager(getSettingsPath());
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
 
-// ============================================================================
-// GLOBAL PERMISSION LEVEL
-// ============================================================================
+const validateOverrides = (value: unknown): PermissionOverrides | undefined => {
+  if (!value || typeof value !== "object") return undefined;
 
-export const loadGlobalPermissionLevel = (): PermissionLevel | null => {
-  const settings = settingsManager.load();
-  const level = (settings.permissionLevel as string)?.toLowerCase();
-  if (level && LEVELS.includes(level as PermissionLevel)) {
-    return level as PermissionLevel;
+  const raw = value as Record<string, unknown>;
+  const overrides: PermissionOverrides = {};
+  for (const level of ["minimal", "low", "medium", "high", "dangerous"] as const) {
+    if (isStringArray(raw[level])) overrides[level] = raw[level];
   }
-  return null;
+
+  return Object.keys(overrides).length > 0 ? overrides : undefined;
 };
 
-export const saveGlobalPermissionLevel = (level: PermissionLevel): void => {
-  const settings = settingsManager.load();
-  settings.permissionLevel = level;
-  settingsManager.save(settings);
+const validatePrefixMappings = (value: unknown): PermissionPrefixMapping[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.filter((mapping): mapping is PermissionPrefixMapping => {
+    if (!mapping || typeof mapping !== "object") return false;
+    const candidate = mapping as { from?: unknown; to?: unknown };
+    return (
+      typeof candidate.from === "string" &&
+      candidate.from.length > 0 &&
+      typeof candidate.to === "string"
+    );
+  });
 };
 
-// ============================================================================
-// GLOBAL PERMISSION MODE
-// ============================================================================
-
-export const loadGlobalPermissionMode = (): PermissionMode | null => {
-  const settings = settingsManager.load();
-  const mode = (settings.permissionMode as string)?.toLowerCase();
-  if (mode && PERMISSION_MODES.includes(mode as PermissionMode)) {
-    return mode as PermissionMode;
-  }
-  return null;
-};
-
-export const saveGlobalPermissionMode = (mode: PermissionMode): void => {
-  const settings = settingsManager.load();
-  settings.permissionMode = mode;
-  settingsManager.save(settings);
-};
-
-// ============================================================================
-// PERMISSION CONFIG
-// ============================================================================
-
+/** Load only the classifier customisation still used by session approvals. */
 export const loadPermissionConfig = (): PermissionConfig => {
-  const settings = settingsManager.load();
-  return settingsManager.validate(
-    settings.permissionConfig as PermissionConfig,
-  );
-};
+  try {
+    const settings = JSON.parse(
+      readFileSync(join(getAgentDir(), "settings.json"), "utf8"),
+    ) as { permissionConfig?: unknown };
+    const raw = settings.permissionConfig;
+    if (!raw || typeof raw !== "object") return {};
 
-export const savePermissionConfig = (config: PermissionConfig): void => {
-  const settings = settingsManager.load();
-  settings.permissionConfig = config;
-  settingsManager.save(settings);
+    const config = raw as Record<string, unknown>;
+    const overrides = validateOverrides(config.overrides);
+    const prefixMappings = validatePrefixMappings(config.prefixMappings);
+    return {
+      ...(overrides ? { overrides } : {}),
+      ...(prefixMappings.length > 0 ? { prefixMappings } : {}),
+    };
+  } catch {
+    return {};
+  }
 };

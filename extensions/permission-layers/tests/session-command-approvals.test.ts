@@ -3,7 +3,7 @@ import { getSettingsMock } from "./fixtures/helpers";
 
 vi.mock("../src/core/settings", () => getSettingsMock());
 
-import sessionCommandApprovals from "../src/index";
+import sessionCommandApprovals from "../index";
 
 type Handler = (event: any, ctx: any) => Promise<unknown> | unknown;
 

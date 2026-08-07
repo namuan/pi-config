@@ -2,7 +2,7 @@
   "name": "pi-permission-layers-vendor",
   "version": "1.3.0-vendor.1",
   "private": true,
-  "description": "Vendored Pi extension for layered permission controls",
+  "description": "Vendored Pi extension for session command approvals",
   "keywords": [
     "pi",
     "pi-package",
@@ -27,11 +27,6 @@
   "scripts": {
     "test": "vitest run"
   },
-  "prettier": {
-    "plugins": [
-      "prettier-plugin-organize-imports"
-    ]
-  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
@@ -41,7 +36,6 @@
   "devDependencies": {
     "@types/node": "^25.9.3",
     "@types/shell-quote": "^1.7.5",
-    "prettier-plugin-organize-imports": "^4.3.0",
     "vitest": "^4.1.8"
   }
 }
