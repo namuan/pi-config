@@ -18,6 +18,10 @@ import {
   getSessionApprovalScopes,
   type SessionApprovalScope,
 } from "./src/core/classifiers/shell-classifier";
+import {
+  loadGlobalCommandApprovals,
+  saveGlobalCommandApprovals,
+} from "./src/core/settings";
 
 const scopesMatch = (
   left: SessionApprovalScope,
@@ -84,6 +88,11 @@ const getUnapprovedScopes = (
   );
 };
 
+const getGlobalScopeLabel = (scope: SessionApprovalScope): string =>
+  getSessionApprovalScopeLabel(scope)
+    .replace(/^Allow /, "Always allow ")
+    .replace("(session)", "(all sessions)");
+
 const cancellationReason = (command: string): string =>
   getCommandPermissionBreakdown(command).length > 1
     ? "Cancelled by the user. Do not retry or circumvent. Do not send compound shell commands; use one bash command per tool call so each action can be reviewed separately."
@@ -98,12 +107,7 @@ const formatCommandBreakdown = (
     const isReadOnly = item.level === "minimal";
     const color = item.dangerous ? "error" : isReadOnly ? "success" : "warning";
     const marker = item.dangerous ? "✕" : isReadOnly ? "✓" : "!";
-    const status = item.dangerous
-      ? "dangerous"
-      : isReadOnly
-        ? "read-only"
-        : "needs approval";
-    return themed(theme, color, `  ${marker} ${status}: ${item.command}`);
+    return themed(theme, color, `${marker} ${item.command}`);
   });
 
   // Redirections are intentionally excluded from command tokens by the shell
@@ -113,18 +117,24 @@ const formatCommandBreakdown = (
     breakdown.every((item) => item.level === "minimal")
   ) {
     lines.push(
-      themed(theme, "warning", "  ! needs approval: shell redirection or other shell syntax"),
+      themed(theme, "warning", "! shell redirection or other shell syntax"),
     );
   }
 
-  return ["Command breakdown:", ...lines].join("\n");
+  const legend = "✓ no approval · ! approval · ✕ danger";
+  return breakdown.length > 1 ? [legend, ...lines].join("\n") : lines.join("\n");
 };
 
 export default function (pi: ExtensionAPI) {
   const sessionApprovals: SessionApprovalScope[] = [];
+  let globalApprovals: SessionApprovalScope[] = [];
 
   pi.on("session_start", () => {
     sessionApprovals.length = 0;
+    globalApprovals = loadGlobalCommandApprovals().map((approval) => ({
+      kind: approval.kind,
+      tokens: [...approval.tokens],
+    }));
   });
 
   pi.on("tool_call", async (event: ToolCallEvent, ctx: ExtensionContext) => {
@@ -161,7 +171,9 @@ export default function (pi: ExtensionAPI) {
       };
     }
 
-    if (commandIsApproved(command, sessionApprovals)) return undefined;
+    if (commandIsApproved(command, [...sessionApprovals, ...globalApprovals])) {
+      return undefined;
+    }
 
     if (!ctx.hasUI) {
       return {
@@ -171,17 +183,24 @@ export default function (pi: ExtensionAPI) {
     }
 
     while (true) {
-      const scopes = getUnapprovedScopes(command, sessionApprovals);
+      const approvals = [...sessionApprovals, ...globalApprovals];
+      const scopes = getUnapprovedScopes(command, approvals);
       const scopeOptions = scopes.map((scope) => ({
         scope,
         label: getSessionApprovalScopeLabel(scope),
       }));
+      const globalApprovalLabel = "Choose a global command approval…";
       const scopeSummary = scopeOptions.length > 0
-        ? "Choose an exact command, command/subcommand prefix, or executable prefix. Approvals last only for this session."
-        : "This command uses shell syntax that cannot receive a reusable approval.";
+        ? "Scope: exact · command/subcommand · executable · global"
+        : "Only once: complex shell syntax.";
       const choice = await ctx.ui.select(
-        `Session approval required:\n\n$ ${command}\n\n${breakdown}\n\n${scopeSummary}`,
-        ["Allow once", ...scopeOptions.map((option) => option.label), "Cancel"],
+        `Approval needed\n$ ${command}\n${breakdown}\n${scopeSummary}`, 
+        [
+          "Allow once",
+          ...scopeOptions.map((option) => option.label),
+          ...(scopeOptions.length > 0 ? [globalApprovalLabel] : []),
+          "Cancel",
+        ],
       );
 
       if (choice === "Allow once") return undefined;
@@ -190,7 +209,38 @@ export default function (pi: ExtensionAPI) {
       if (selected) {
         sessionApprovals.push(selected.scope);
         ctx.ui.notify(`Session approval: ${selected.label}`, "info");
-        if (commandIsApproved(command, sessionApprovals)) return undefined;
+        if (commandIsApproved(command, [...sessionApprovals, ...globalApprovals])) {
+          return undefined;
+        }
+        continue;
+      }
+
+      if (choice === globalApprovalLabel) {
+        const globalOptions = scopeOptions.map((option) => ({
+          scope: option.scope,
+          label: getGlobalScopeLabel(option.scope),
+        }));
+        const globalChoice = await ctx.ui.select(
+          "Choose a global command approval:",
+          [...globalOptions.map((option) => option.label), "Cancel"],
+        );
+        const globalSelection = globalOptions.find(
+          (option) => option.label === globalChoice,
+        );
+        if (!globalSelection) continue;
+
+        try {
+          const nextGlobalApprovals = [...globalApprovals, globalSelection.scope];
+          saveGlobalCommandApprovals(nextGlobalApprovals);
+          globalApprovals = nextGlobalApprovals;
+          ctx.ui.notify(`Global approval: ${globalSelection.label}`, "info");
+          if (commandIsApproved(command, [...sessionApprovals, ...globalApprovals])) {
+            return undefined;
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          ctx.ui.notify(`Could not save global approval: ${message}`, "error");
+        }
         continue;
       }
 

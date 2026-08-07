@@ -1,11 +1,35 @@
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type {
   PermissionConfig,
   PermissionOverrides,
   PermissionPrefixMapping,
 } from "./interfaces";
+
+export interface StoredCommandApproval {
+  kind: "exact" | "prefix";
+  tokens: string[];
+}
+
+const settingsPath = () => join(getAgentDir(), "settings.json");
+
+const loadSettings = (): Record<string, unknown> => {
+  try {
+    const settings = JSON.parse(readFileSync(settingsPath(), "utf8"));
+    return settings && typeof settings === "object" ? settings : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveSettings = (settings: Record<string, unknown>): void => {
+  const path = settingsPath();
+  const temporaryPath = `${path}.tmp`;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`);
+  renameSync(temporaryPath, path);
+};
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -36,23 +60,49 @@ const validatePrefixMappings = (value: unknown): PermissionPrefixMapping[] => {
   });
 };
 
+const isStoredCommandApproval = (
+  value: unknown,
+): value is StoredCommandApproval => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { kind?: unknown; tokens?: unknown };
+  return (
+    (candidate.kind === "exact" || candidate.kind === "prefix") &&
+    Array.isArray(candidate.tokens) &&
+    candidate.tokens.length > 0 &&
+    candidate.tokens.length <= 32 &&
+    candidate.tokens.every(
+      (token) => typeof token === "string" && token.length > 0 && token.length <= 512,
+    )
+  );
+};
+
 /** Load only the classifier customisation still used by session approvals. */
 export const loadPermissionConfig = (): PermissionConfig => {
-  try {
-    const settings = JSON.parse(
-      readFileSync(join(getAgentDir(), "settings.json"), "utf8"),
-    ) as { permissionConfig?: unknown };
-    const raw = settings.permissionConfig;
-    if (!raw || typeof raw !== "object") return {};
+  const raw = loadSettings().permissionConfig;
+  if (!raw || typeof raw !== "object") return {};
 
-    const config = raw as Record<string, unknown>;
-    const overrides = validateOverrides(config.overrides);
-    const prefixMappings = validatePrefixMappings(config.prefixMappings);
-    return {
-      ...(overrides ? { overrides } : {}),
-      ...(prefixMappings.length > 0 ? { prefixMappings } : {}),
-    };
-  } catch {
-    return {};
-  }
+  const config = raw as Record<string, unknown>;
+  const overrides = validateOverrides(config.overrides);
+  const prefixMappings = validatePrefixMappings(config.prefixMappings);
+  return {
+    ...(overrides ? { overrides } : {}),
+    ...(prefixMappings.length > 0 ? { prefixMappings } : {}),
+  };
+};
+
+/** Load user-approved command scopes that apply to every Pi session. */
+export const loadGlobalCommandApprovals = (): StoredCommandApproval[] => {
+  const approvals = loadSettings().commandApprovals;
+  if (!Array.isArray(approvals)) return [];
+  return approvals.filter(isStoredCommandApproval).slice(0, 200);
+};
+
+/** Persist user-approved command scopes without changing unrelated settings. */
+export const saveGlobalCommandApprovals = (
+  approvals: StoredCommandApproval[],
+): void => {
+  const validApprovals = approvals.filter(isStoredCommandApproval).slice(0, 200);
+  const settings = loadSettings();
+  settings.commandApprovals = validApprovals;
+  saveSettings(settings);
 };

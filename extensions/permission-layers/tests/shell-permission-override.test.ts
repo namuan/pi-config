@@ -364,15 +364,15 @@ describe("per-command override: subshell commands", () => {
 // Per-command override: dangerous command combined with override
 // ============================================================================
 
-describe("per-command override: dangerous command overrides with non-dangerous", () => {
-  test("rm -rf overridden to non-dangerous low", () => {
+describe("per-command override: rm classification", () => {
+  test("rm -rf can be classified as low", () => {
     const config: PermissionConfig = {
       overrides: {
         low: ["rm -rf /"],
       },
     };
 
-    // rm -rf / is normally dangerous, but override makes it non-dangerous low
+    // Recursive deletion is handled by permission-gate; this classifier can lower its risk band.
     assertLevel("cd /tmp && rm -rf /", "low", false, config);
   });
 

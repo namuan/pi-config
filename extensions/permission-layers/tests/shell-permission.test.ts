@@ -454,12 +454,12 @@ describe("dangerous: sudo", () => {
   });
 });
 
-describe("dangerous: rm -rf", () => {
-  test("rm -rf", () => {
-    assertLevel("rm -rf /", "high", true);
-    assertLevel("rm -rf .", "high", true);
-    assertLevel("rm -r -f dir", "high", true);
-    assertLevel("rm --recursive --force dir", "high", true);
+describe("high-risk but not dangerous: rm", () => {
+  test("rm variants remain eligible for session-scoped approval", () => {
+    assertLevel("rm -rf /", "high", false);
+    assertLevel("rm -rf .", "high", false);
+    assertLevel("rm -r -f dir", "high", false);
+    assertLevel("rm --recursive --force dir", "high", false);
     assertLevel("rm file.txt", "high", false);
     assertLevel("rm -r dir", "high", false);
     assertLevel("rm -f file.txt", "high", false);
@@ -729,12 +729,12 @@ describe("edge: rm edge cases", () => {
     assertLevel("rm -r dir", "high", false);
     assertLevel("rm -f file.txt", "high", false);
     assertLevel("rm -i file.txt", "high", false);
-    assertLevel("rm -rf dir", "high", true);
-    assertLevel("rm -fr dir", "high", true);
-    assertLevel("rm -r -f dir", "high", true);
-    assertLevel("rm -f -r dir", "high", true);
-    assertLevel("rm --recursive --force dir", "high", true);
-    assertLevel("rm -rf --no-preserve-root /", "high", true);
+    assertLevel("rm -rf dir", "high", false);
+    assertLevel("rm -fr dir", "high", false);
+    assertLevel("rm -r -f dir", "high", false);
+    assertLevel("rm -f -r dir", "high", false);
+    assertLevel("rm --recursive --force dir", "high", false);
+    assertLevel("rm -rf --no-preserve-root /", "high", false);
   });
 });
 
@@ -1348,17 +1348,17 @@ describe("security: wildcard pattern doesn't bypass dangerous detection", () => 
   });
 });
 
-describe("security: prefix mapping to dangerous command", () => {
-  test("prefix to dangerous", () => {
+describe("security: prefix mapping to high-risk command", () => {
+  test("prefix to recursive deletion", () => {
     const config: PermissionConfig = {
       prefixMappings: [
-        { from: "safe", to: "rm -rf" }, // Dangerous mapping
+        { from: "safe", to: "rm -rf" }, // High-risk mapping
       ],
     };
 
     const result = classifyCommand("safe /", config);
     expect(result.level).toBe("high");
-    expect(result.dangerous).toBe(true);
+    expect(result.dangerous).toBe(false);
   });
 });
 

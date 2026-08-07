@@ -9,9 +9,24 @@ A vendored Pi extension that requires an explicit, session-only approval for non
   - the exact parsed command
   - its command/subcommand prefix, for example `npm run`
   - its executable prefix, for example `npm`
+- Session scopes clear when the session ends. You can also choose a global scope, which persists in `~/.pi/agent/settings.json` and applies to future sessions.
 - Compound commands show a per-command breakdown and offer reusable scopes for each elevated command. Every elevated segment must be approved before the compound command runs.
 - Dangerous commands require a one-time confirmation and cannot receive a reusable scope.
 - Approvals clear on session start, reload, or restart.
+
+## Dangerous commands
+
+The session-approval classifier marks these as dangerous:
+
+- any `sudo …` command
+- `chmod 777 …` or `chmod a+rwx …`
+- `dd` writing to a device, such as `dd … of=/dev/disk…`
+- `mkfs*`, `fdisk`, `parted`, and `format`
+- `shutdown`, `reboot`, `halt`, `poweroff`, and `init`
+- the canonical shell fork bomb: `:(){ :|:& };:`
+- any command matching a user-defined `permissionConfig.overrides.dangerous` pattern
+
+The separate `permission-gate.ts` hard policy may also block or require confirmation for additional commands, including Git pushes, commits, secret access, destructive Git operations, and recursive deletion.
 - In print/non-interactive mode, unapproved commands are blocked.
 
 This extension does not maintain permission levels or register `/permission` commands. The separate `permission-gate.ts` extension remains the hard-policy layer for protected paths, credentials, Git rules, and destructive operations.

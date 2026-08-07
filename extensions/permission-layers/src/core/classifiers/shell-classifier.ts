@@ -164,22 +164,6 @@ const isDangerousCommand = (tokens: string[]): boolean => {
 
   if (cmd === "sudo") return true;
 
-  if (cmd === "rm") {
-    let hasRecursive = false;
-    let hasForce = false;
-
-    for (const arg of args) {
-      if (arg === "--recursive") hasRecursive = true;
-      if (arg === "--force") hasForce = true;
-      if (arg.startsWith("-") && !arg.startsWith("--")) {
-        if (arg.includes("r") || arg.includes("R")) hasRecursive = true;
-        if (arg.includes("f")) hasForce = true;
-      }
-    }
-
-    if (hasRecursive && hasForce) return true;
-  }
-
   if (cmd === "chmod") {
     if (argsStr.includes("777") || argsStr.includes("a+rwx")) return true;
   }

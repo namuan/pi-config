@@ -15,14 +15,15 @@ const createExtension = () => {
   return handlers;
 };
 
-const createContext = (choice: string) => {
+const createContext = (choice: string | string[]) => {
+  const choices = Array.isArray(choice) ? [...choice] : [choice];
   const selectCalls: Array<{ message: string; options: string[] }> = [];
   return {
     hasUI: true,
     ui: {
       select: async (message: string, options: string[]) => {
         selectCalls.push({ message, options });
-        return choice;
+        return choices.shift() ?? "Cancel";
       },
       notify: vi.fn(),
     },
@@ -46,13 +47,14 @@ describe("session command approvals", () => {
 
     expect(firstResult).toBeUndefined();
     expect(firstCtx.selectCalls[0].message).toContain(
-      "Session approval required:",
+      "Approval needed",
     );
     expect(firstCtx.selectCalls[0].options).toEqual(
       expect.arrayContaining([
         'Allow exactly "npm run test" (session)',
         prefixLabel,
         'Allow commands beginning with "npm" (session)',
+        "Choose a global command approval…",
       ]),
     );
 
@@ -72,6 +74,29 @@ describe("session command approvals", () => {
     expect(afterRestartResult).toMatchObject({ block: true });
   });
 
+  test("offers global scopes in a second, explicit selection", async () => {
+    const handlers = createExtension();
+    const start = handlers.get("session_start")!;
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext([
+      "Choose a global command approval…",
+      'Always allow commands beginning with "npm run" (all sessions)',
+    ]);
+
+    await start({}, ctx);
+    const result = await toolCall(
+      { toolName: "bash", input: { command: "npm run test" } },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.selectCalls).toHaveLength(2);
+    expect(ctx.selectCalls[1].message).toBe("Choose a global command approval:");
+    expect(ctx.selectCalls[1].options).toContain(
+      'Always allow commands beginning with "npm run" (all sessions)',
+    );
+  });
+
   test("breaks compound commands down by approval requirement", async () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
@@ -86,9 +111,11 @@ describe("session command approvals", () => {
     expect((result as { reason: string }).reason).toContain(
       "Do not send compound shell commands; use one bash command per tool call",
     );
-    expect(ctx.selectCalls[0].message).toContain("Command breakdown:");
-    expect(ctx.selectCalls[0].message).toContain("read-only: git status");
-    expect(ctx.selectCalls[0].message).toContain("needs approval: npm run ci");
+    expect(ctx.selectCalls[0].message).toContain(
+      "✓ no approval · ! approval · ✕ danger",
+    );
+    expect(ctx.selectCalls[0].message).toContain("✓ git status");
+    expect(ctx.selectCalls[0].message).toContain("! npm run ci");
   });
 
   test("offers reusable approval scopes for elevated commands in a compound command", async () => {
@@ -122,10 +149,10 @@ describe("session command approvals", () => {
     );
 
     expect(ctx.selectCalls[0].message).toContain(
-      "<success>  ✓ read-only: git status</success>",
+      "<success>✓ git status</success>",
     );
     expect(ctx.selectCalls[0].message).toContain(
-      "<warning>  ! needs approval: npm run ci</warning>",
+      "<warning>! npm run ci</warning>",
     );
   });
 
