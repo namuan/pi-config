@@ -54,10 +54,11 @@ User can re-run with: PI_PERMISSION_LEVEL=bypassed pi -p "..."`,
     const breakdown = _details.startsWith("Higher-permission")
       ? `\n${_details}`
       : "";
+    const requiredInfo = LEVEL_INFO[requiredLevel];
     return {
       block: true,
       reason: `${message}${breakdown}
-Blocked by permission (${this.state.currentLevel}). Allowed at this level: ${LEVEL_INFO[this.state.currentLevel].desc}
+Blocked by permission (${this.state.currentLevel}). ${requiredInfo.label} permits: ${requiredInfo.enables}.
 User can re-run with: PI_PERMISSION_LEVEL=${requiredLevel} pi -p "..."`,
     };
   }

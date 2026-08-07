@@ -79,6 +79,19 @@ describe("bash prompt: compound command breakdown", () => {
   });
 });
 
+describe("bash prompt: elevated capability summary", () => {
+  test("explains what the requested level permits", async () => {
+    const ctx = makeCtx("Cancel");
+
+    await uiStrategy.handleBashToolCall("npm install", ctx as unknown as never);
+
+    expect(ctx.selectCalls.length).toBeGreaterThan(0);
+    expect(ctx.selectCalls[0].message).toContain(
+      "Permission at this level permits: development work such as package installs, builds, tests, file creation, and local Git operations.",
+    );
+  });
+});
+
 describe("bash prompt: full command shown in message", () => {
   test("full command shown", async () => {
     const ctx = makeCtx("Cancel");

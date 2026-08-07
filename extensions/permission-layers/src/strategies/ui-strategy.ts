@@ -84,6 +84,7 @@ Use /permission-mode ask to enable confirmations.`,
 
     const requiredInfo = LEVEL_INFO[requiredLevel];
     const currentInfo = LEVEL_INFO[this.state.currentLevel];
+    const capabilitySummary = `Permission at this level permits: ${requiredInfo.enables}.`;
 
     // System notification
     await notifySystem(
@@ -96,6 +97,7 @@ Use /permission-mode ask to enable confirmations.`,
         block: true,
         reason: `${message}
 Blocked by permission (${this.state.currentLevel}, mode: block). Requires ${requiredInfo.label}.
+${capabilitySummary}
 Use /permission ${requiredLevel} or /permission-mode ask to enable prompts.`,
       };
     }
@@ -103,7 +105,7 @@ Use /permission ${requiredLevel} or /permission-mode ask to enable prompts.`,
     const breakdown = _details.startsWith("Higher-permission")
       ? `\n\n${_details}`
       : "";
-    const promptTitle = `[Requires ${requiredInfo.label}]: ${message}${breakdown}`;
+    const promptTitle = `[Requires ${requiredInfo.label}]: ${message}\n\n${capabilitySummary}${breakdown}`;
     const allowAllLabel = `Allow all ${requiredInfo.label} (session)`;
     const choice = await ctx.ui.select(promptTitle, [
       "Allow once",
