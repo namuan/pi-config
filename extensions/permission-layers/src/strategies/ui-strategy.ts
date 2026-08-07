@@ -9,6 +9,10 @@ import {
   PERMISSION_MODES,
   PERMISSION_MODE_INFO,
 } from "../core/types";
+import {
+  getSessionApprovalScopeLabel,
+  getSessionApprovalScopes,
+} from "../core/classifiers/shell-classifier";
 import { BasePermissionStrategy } from "./base-strategy";
 import { notify } from "./internal/commands";
 import { checkPermission } from "./internal/permission-check";
@@ -105,15 +109,33 @@ Use /permission ${requiredLevel} or /permission-mode ask to enable prompts.`,
     const breakdown = _details.startsWith("Higher-permission")
       ? `\n\n${_details}`
       : "";
-    const promptTitle = `[Requires ${requiredInfo.label}]: ${message}\n\n${capabilitySummary}${breakdown}`;
+    const command = message.startsWith("$ ") ? message.slice(2) : undefined;
+    const scopes = command ? getSessionApprovalScopes(command) : [];
+    const scopeOptions = scopes.map((scope) => ({
+      scope,
+      label: getSessionApprovalScopeLabel(scope),
+    }));
+    const scopeSummary = scopeOptions.length > 0
+      ? "\n\nSession command approvals let you allow this exact command, its command/subcommand prefix, or its executable prefix without raising the overall permission level."
+      : "";
+    const promptTitle = `[Requires ${requiredInfo.label}]: ${message}\n\n${capabilitySummary}${breakdown}${scopeSummary}`;
     const allowAllLabel = `Allow all ${requiredInfo.label} (session)`;
-    const choice = await ctx.ui.select(promptTitle, [
+    const options = [
       "Allow once",
+      ...scopeOptions.map((option) => option.label),
       allowAllLabel,
       "Cancel",
-    ]);
+    ];
+    const choice = await ctx.ui.select(promptTitle, options);
 
     if (choice === "Allow once") return undefined;
+
+    const selectedScope = scopeOptions.find((option) => option.label === choice);
+    if (selectedScope) {
+      this.allowCommandScope(selectedScope.scope);
+      notify(ctx, `Permission: ${selectedScope.label}`);
+      return undefined;
+    }
 
     if (choice === allowAllLabel) {
       this.setLevel(requiredLevel, false, ctx);

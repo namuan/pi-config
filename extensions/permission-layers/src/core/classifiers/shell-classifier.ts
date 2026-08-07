@@ -37,6 +37,8 @@ interface ParsedCommand {
   hasShellTricks?: boolean;
   /** Output redirections to non-special files (>, >>) */
   writesFiles?: boolean;
+  /** Any shell redirection, including input redirects and file-descriptor swaps. */
+  hasRedirections?: boolean;
 }
 
 const hasDangerousExpansion = (command: string): boolean => {
@@ -79,6 +81,7 @@ const parseCommand = (command: string): ParsedCommand => {
   let currentSegment: string[] = [];
   let foundCommandSubstitution = false;
   let writesFiles = false;
+  let hasRedirections = false;
 
   let pendingOutputRedirect = false;
 
@@ -104,6 +107,7 @@ const parseCommand = (command: string): ParsedCommand => {
       if ("op" in token) {
         const op = token.op as string;
         if (ALL_REDIRECTION_OPS.has(op)) {
+          hasRedirections = true;
           if (OUTPUT_REDIRECTION_OPS.has(op)) {
             pendingOutputRedirect = true;
           } else {
@@ -143,6 +147,7 @@ const parseCommand = (command: string): ParsedCommand => {
     raw: command,
     hasShellTricks: hasShellTricks || foundCommandSubstitution,
     writesFiles,
+    hasRedirections,
   };
 };
 
@@ -295,6 +300,71 @@ export const getCommandPermissionBreakdown = (
       dangerous: classification.dangerous,
     };
   });
+};
+
+export interface SessionApprovalScope {
+  kind: "exact" | "prefix";
+  tokens: string[];
+}
+
+const scopesMatch = (
+  left: SessionApprovalScope,
+  right: SessionApprovalScope,
+): boolean =>
+  left.kind === right.kind &&
+  left.tokens.length === right.tokens.length &&
+  left.tokens.every((token, index) => token === right.tokens[index]);
+
+export const getSessionApprovalScopeLabel = (
+  scope: SessionApprovalScope,
+): string => {
+  const command = scope.tokens.join(" ");
+  return scope.kind === "exact"
+    ? `Allow exactly "${command}" (session)`
+    : `Allow commands beginning with "${command}" (session)`;
+};
+
+/**
+ * Return explicit session-only approval scopes for a simple shell command.
+ *
+ * The choices are deliberately bounded to the executable, executable plus
+ * subcommand, and the exact command. Compound commands, redirections, and
+ * shell syntax that can conceal execution are never eligible.
+ */
+export const getSessionApprovalScopes = (
+  command: string,
+  config?: PermissionConfig,
+): SessionApprovalScope[] => {
+  const effectiveConfig = config ?? getCachedConfig();
+  const normalizedCommand = applyPrefixMappings(
+    command,
+    effectiveConfig.prefixMappings,
+  );
+  const parsed = parseCommand(normalizedCommand);
+
+  if (
+    parsed.hasShellTricks ||
+    parsed.hasRedirections ||
+    parsed.segments.length !== 1 ||
+    parsed.segments[0].length === 0
+  ) {
+    return [];
+  }
+
+  const tokens = parsed.segments[0];
+  const scopes: SessionApprovalScope[] = [
+    { kind: "exact", tokens: [...tokens] },
+    { kind: "prefix", tokens: [tokens[0]] },
+  ];
+
+  if (tokens.length >= 2) {
+    scopes.push({ kind: "prefix", tokens: tokens.slice(0, 2) });
+  }
+
+  return scopes.filter(
+    (scope, index) =>
+      scopes.findIndex((candidate) => scopesMatch(candidate, scope)) === index,
+  );
 };
 
 export const classifyCommand = (

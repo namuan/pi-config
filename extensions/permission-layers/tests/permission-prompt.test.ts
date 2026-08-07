@@ -92,6 +92,56 @@ describe("bash prompt: elevated capability summary", () => {
   });
 });
 
+describe("bash prompt: session command approvals", () => {
+  test("offers exact, command/subcommand, and executable scopes", async () => {
+    const strategy = new UIPermissionStrategy();
+    const subcommandLabel = 'Allow commands beginning with "npm run" (session)';
+    const firstCtx = makeCtx(subcommandLabel);
+
+    const firstResult = await strategy.handleBashToolCall(
+      "npm run test",
+      firstCtx as unknown as never,
+    );
+
+    expect(firstResult).toBeUndefined();
+    expect(firstCtx.selectCalls[0].options).toEqual(
+      expect.arrayContaining([
+        'Allow exactly "npm run test" (session)',
+        subcommandLabel,
+        'Allow commands beginning with "npm" (session)',
+      ]),
+    );
+    expect(firstCtx.selectCalls[0].message).toContain(
+      "allow this exact command, its command/subcommand prefix, or its executable prefix",
+    );
+    expect(strategy.state.currentLevel).toBe("minimal");
+
+    const laterCtx = makeCtx("Cancel");
+    const laterResult = await strategy.handleBashToolCall(
+      "npm run ci",
+      laterCtx as unknown as never,
+    );
+
+    expect(laterResult).toBeUndefined();
+    expect(laterCtx.selectCalls).toHaveLength(0);
+  });
+
+  test("an exact approval does not allow a different command", async () => {
+    const strategy = new UIPermissionStrategy();
+    const firstCtx = makeCtx('Allow exactly "npm run test" (session)');
+    await strategy.handleBashToolCall("npm run test", firstCtx as unknown as never);
+
+    const laterCtx = makeCtx("Cancel");
+    const laterResult = await strategy.handleBashToolCall(
+      "npm run ci",
+      laterCtx as unknown as never,
+    );
+
+    expect(laterResult?.block).toBe(true);
+    expect(laterCtx.selectCalls).toHaveLength(1);
+  });
+});
+
 describe("bash prompt: full command shown in message", () => {
   test("full command shown", async () => {
     const ctx = makeCtx("Cancel");

@@ -6,6 +6,8 @@ import {
 import {
   classifyCommand,
   getCommandPermissionBreakdown,
+  getSessionApprovalScopes,
+  type SessionApprovalScope,
 } from "../core/classifiers/shell-classifier";
 import { resolveToolLevel } from "../core/classifiers/tool-classifier";
 import { getCachedConfig } from "../core/config";
@@ -54,6 +56,7 @@ const getHigherPermissionCommandDetails = (
  */
 export abstract class BasePermissionStrategy implements PermissionStrategy {
   public readonly state: PermissionState;
+  private readonly sessionCommandScopes: SessionApprovalScope[] = [];
 
   constructor() {
     this.state = this.createInitialState();
@@ -93,9 +96,26 @@ export abstract class BasePermissionStrategy implements PermissionStrategy {
     }
   }
 
+  protected allowCommandScope(scope: SessionApprovalScope): void {
+    this.sessionCommandScopes.push(scope);
+  }
+
+  private hasAllowedCommandScope(command: string): boolean {
+    const candidateScopes = getSessionApprovalScopes(command);
+    return candidateScopes.some((candidate) =>
+      this.sessionCommandScopes.some(
+        (allowed) =>
+          allowed.kind === candidate.kind &&
+          allowed.tokens.length === candidate.tokens.length &&
+          allowed.tokens.every((token, index) => token === candidate.tokens[index]),
+      ),
+    );
+  }
+
   // ── Session ──────────────────────────────────────────────────────
 
   handleSessionStart(ctx: ExtensionContext): void {
+    this.sessionCommandScopes.length = 0;
     initializeSessionState(this.state);
     this.onSessionStart(ctx);
   }
@@ -137,6 +157,8 @@ export abstract class BasePermissionStrategy implements PermissionStrategy {
         getHigherPermissionCommandDetails(command, this.state.currentLevel),
       );
     }
+
+    if (this.hasAllowedCommandScope(command)) return undefined;
 
     return this.onRequest(
       classification.level,
