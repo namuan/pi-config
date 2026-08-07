@@ -1,8 +1,9 @@
 /**
  * Session command approvals for Pi.
  *
- * Read-only shell commands run normally. Every other shell command requires a
- * narrow, explicit session approval; the existing permission-gate extension
+ * Read-only shell commands run normally. Other commands require a narrow,
+ * explicit session approval unless the safety scorer rates them above the
+ * experimental auto-approval threshold; the existing permission-gate extension
  * remains responsible for protected paths and organization-specific policies.
  */
 
@@ -47,6 +48,7 @@ type SafetyRating = {
 };
 
 const SAFETY_MODEL = { provider: "opencode-go", id: "deepseek-v4-flash" };
+const AUTO_APPROVE_SCORE = 70;
 
 const extractSafetyRating = (text: string): SafetyRating | undefined => {
   const match = text.match(/\{[\s\S]*\}/);
@@ -267,6 +269,19 @@ export default function (pi: ExtensionAPI) {
         block: true,
         reason: cancellationReason(command),
       };
+    }
+
+    // This is experimental and deliberately strict: 70 itself still requires
+    // confirmation, an unavailable score fails closed, and hard-policy gates
+    // remain separate extension handlers.
+    if (rating && rating.score > AUTO_APPROVE_SCORE) {
+      if (ctx.hasUI) {
+        ctx.ui.notify(
+          `✓ auto-approved\n$ ${command}\n${formatSafetyRating(rating, theme)}`,
+          "info",
+        );
+      }
+      return undefined;
     }
 
     if (commandIsApproved(command, [...sessionApprovals, ...globalApprovals])) {
