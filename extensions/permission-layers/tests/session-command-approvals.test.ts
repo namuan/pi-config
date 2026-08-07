@@ -135,6 +135,33 @@ describe("session command approvals", () => {
     );
   });
 
+  test("shows an advisory score from the cheap safety model", async () => {
+    const handlers = createExtension();
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext("Cancel") as any;
+    ctx.modelRegistry = {
+      find: vi.fn(() => ({ provider: "opencode-go", id: "deepseek-v4-flash" })),
+      hasConfiguredAuth: vi.fn(() => true),
+      complete: vi.fn(async () => ({
+        content: [{ type: "text", text: '{"score":82,"reason":"local reversible development task"}' }],
+      })),
+    };
+
+    const result = await toolCall(
+      { toolName: "bash", input: { command: "npm run test" } },
+      ctx,
+    );
+
+    expect(result).toMatchObject({ block: true });
+    expect(ctx.modelRegistry.find).toHaveBeenCalledWith(
+      "opencode-go",
+      "deepseek-v4-flash",
+    );
+    expect(ctx.selectCalls[0].message).toContain(
+      "◆ safety 82/100 · local reversible development task",
+    );
+  });
+
   test("uses semantic theme colours for the command breakdown", async () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;

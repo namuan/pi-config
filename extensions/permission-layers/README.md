@@ -12,6 +12,7 @@ A vendored Pi extension that requires an explicit, session-only approval for non
 - Session scopes clear when the session ends. You can also choose a global scope, which persists in `~/.pi/agent/settings.json` and applies to future sessions.
 - Compound commands show a per-command breakdown and offer reusable scopes for each elevated command. Every elevated segment must be approved before the compound command runs.
 - Dangerous commands require a one-time confirmation and cannot receive a reusable scope.
+- Non-read-only commands receive an advisory safety score from `opencode-go/deepseek-v4-flash`. Scores are cached for the session and never approve or block a command by themselves.
 - Approvals clear on session start, reload, or restart.
 
 ## Dangerous commands
