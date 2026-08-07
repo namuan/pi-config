@@ -1,0 +1,104 @@
+import { describe, expect, test, vi } from "vitest";
+import { getSettingsMock } from "./fixtures/helpers";
+
+vi.mock("../src/core/settings", () => getSettingsMock());
+
+import sessionCommandApprovals from "../src/index";
+
+type Handler = (event: any, ctx: any) => Promise<unknown> | unknown;
+
+const createExtension = () => {
+  const handlers = new Map<string, Handler>();
+  sessionCommandApprovals({
+    on: (event: string, handler: Handler) => handlers.set(event, handler),
+  } as any);
+  return handlers;
+};
+
+const createContext = (choice: string) => {
+  const selectCalls: Array<{ message: string; options: string[] }> = [];
+  return {
+    hasUI: true,
+    ui: {
+      select: async (message: string, options: string[]) => {
+        selectCalls.push({ message, options });
+        return choice;
+      },
+      notify: vi.fn(),
+    },
+    selectCalls,
+  };
+};
+
+describe("session command approvals", () => {
+  test("offers scoped approvals without a global permission level", async () => {
+    const handlers = createExtension();
+    const start = handlers.get("session_start")!;
+    const toolCall = handlers.get("tool_call")!;
+    const prefixLabel = 'Allow commands beginning with "npm run" (session)';
+    const firstCtx = createContext(prefixLabel);
+
+    await start({}, firstCtx);
+    const firstResult = await toolCall(
+      { toolName: "bash", input: { command: "npm run test" } },
+      firstCtx,
+    );
+
+    expect(firstResult).toBeUndefined();
+    expect(firstCtx.selectCalls[0].message).toContain(
+      "Session approval required:",
+    );
+    expect(firstCtx.selectCalls[0].options).toEqual(
+      expect.arrayContaining([
+        'Allow exactly "npm run test" (session)',
+        prefixLabel,
+        'Allow commands beginning with "npm" (session)',
+      ]),
+    );
+
+    const laterCtx = createContext("Cancel");
+    const laterResult = await toolCall(
+      { toolName: "bash", input: { command: "npm run ci" } },
+      laterCtx,
+    );
+    expect(laterResult).toBeUndefined();
+    expect(laterCtx.selectCalls).toHaveLength(0);
+
+    await start({}, laterCtx);
+    const afterRestartResult = await toolCall(
+      { toolName: "bash", input: { command: "npm run ci" } },
+      laterCtx,
+    );
+    expect(afterRestartResult).toMatchObject({ block: true });
+  });
+
+  test("breaks compound commands down by approval requirement", async () => {
+    const handlers = createExtension();
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext("Cancel");
+
+    const result = await toolCall(
+      { toolName: "bash", input: { command: "git status && npm run ci" } },
+      ctx,
+    );
+
+    expect(result).toMatchObject({ block: true });
+    expect(ctx.selectCalls[0].message).toContain("Command breakdown:");
+    expect(ctx.selectCalls[0].message).toContain("read-only: git status");
+    expect(ctx.selectCalls[0].message).toContain("needs approval: npm run ci");
+  });
+
+  test("allows the read-only baseline without a prompt", async () => {
+    const handlers = createExtension();
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext("Cancel");
+
+    const result = await toolCall(
+      { toolName: "bash", input: { command: "git status" } },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.selectCalls).toHaveLength(0);
+  });
+});

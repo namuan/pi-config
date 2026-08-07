@@ -1,6 +1,8 @@
 # pi-permission-layers
 
 > Vendored in this repository from `pi-permission-layers` v1.3.0. Local modifications belong here; install dependencies with `npm install` in this directory.
+>
+> This vendored version does not use global permission levels. Read-only shell commands run normally; other shell commands need an exact or prefix-scoped session approval. `permission-gate.ts` remains the hard policy layer for protected paths and Git rules.
 
 A [Pi Coding Agent](https://pi.dev/) extension that implements a layered permission control extension to protect users from unintended operations. It classifies shell commands into 5 security levels and enforces them at runtime, with configurable overrides and two permission modes (`ask` / `block`).
 
