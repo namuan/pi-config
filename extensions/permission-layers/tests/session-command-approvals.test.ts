@@ -88,6 +88,27 @@ describe("session command approvals", () => {
     expect(ctx.selectCalls[0].message).toContain("needs approval: npm run ci");
   });
 
+  test("uses semantic theme colours for the command breakdown", async () => {
+    const handlers = createExtension();
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext("Cancel");
+    (ctx.ui as any).theme = {
+      fg: (color: string, text: string) => `<${color}>${text}</${color}>`,
+    };
+
+    await toolCall(
+      { toolName: "bash", input: { command: "git status && npm run ci" } },
+      ctx,
+    );
+
+    expect(ctx.selectCalls[0].message).toContain(
+      "<success>  ✓ read-only: git status</success>",
+    );
+    expect(ctx.selectCalls[0].message).toContain(
+      "<warning>  ! needs approval: npm run ci</warning>",
+    );
+  });
+
   test("allows the read-only baseline without a prompt", async () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;

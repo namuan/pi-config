@@ -27,12 +27,31 @@ const scopesMatch = (
   left.tokens.length === right.tokens.length &&
   left.tokens.every((token, index) => token === right.tokens[index]);
 
-const formatCommandBreakdown = (command: string): string => {
+type BreakdownTheme = {
+  fg: (color: "success" | "warning" | "error", text: string) => string;
+};
+
+const themed = (
+  theme: BreakdownTheme | undefined,
+  color: "success" | "warning" | "error",
+  text: string,
+): string => theme?.fg(color, text) ?? text;
+
+const formatCommandBreakdown = (
+  command: string,
+  theme?: BreakdownTheme,
+): string => {
   const breakdown = getCommandPermissionBreakdown(command);
   const lines = breakdown.map((item) => {
-    const status = item.level === "minimal" ? "read-only" : "needs approval";
-    const dangerous = item.dangerous ? "; dangerous" : "";
-    return `  ${status}: ${item.command}${dangerous}`;
+    const isReadOnly = item.level === "minimal";
+    const color = item.dangerous ? "error" : isReadOnly ? "success" : "warning";
+    const marker = item.dangerous ? "✕" : isReadOnly ? "✓" : "!";
+    const status = item.dangerous
+      ? "dangerous"
+      : isReadOnly
+        ? "read-only"
+        : "needs approval";
+    return themed(theme, color, `  ${marker} ${status}: ${item.command}`);
   });
 
   // Redirections are intentionally excluded from command tokens by the shell
@@ -41,7 +60,9 @@ const formatCommandBreakdown = (command: string): string => {
     classifyCommand(command).level !== "minimal" &&
     breakdown.every((item) => item.level === "minimal")
   ) {
-    lines.push("  needs approval: shell redirection or other shell syntax");
+    lines.push(
+      themed(theme, "warning", "  ! needs approval: shell redirection or other shell syntax"),
+    );
   }
 
   return ["Command breakdown:", ...lines].join("\n");
@@ -59,7 +80,10 @@ export default function (pi: ExtensionAPI) {
 
     const command = String((event.input as { command?: unknown }).command ?? "");
     const classification = classifyCommand(command);
-    const breakdown = formatCommandBreakdown(command);
+    const breakdown = formatCommandBreakdown(
+      command,
+      ctx.hasUI ? (ctx.ui.theme as BreakdownTheme | undefined) : undefined,
+    );
 
     // Keep the read-only baseline frictionless. There is no mutable permission
     // level: every action above this baseline requires its own session approval.
