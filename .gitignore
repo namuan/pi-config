@@ -16,3 +16,6 @@ models.json
 
 # Local npm packages installed by pi
 npm/
+
+# Extension dependencies are installed from their tracked package-lock.json files
+node_modules/

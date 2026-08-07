@@ -1,0 +1,368 @@
+/**
+ * Shell command classification - parsing, level detection, dangerous command detection
+ */
+
+import { parse } from "shell-quote";
+import {
+  applyPrefixMappings,
+  checkOverrides,
+  getCachedConfig,
+} from "../config";
+import {
+  ALL_REDIRECTION_OPS,
+  COMMAND_SEPARATORS,
+  OUTPUT_REDIRECTION_OPS,
+  SAFE_REDIRECTION_TARGETS,
+  SHELL_EXECUTION_COMMANDS,
+  SHELL_TRICK_PATTERNS,
+} from "../constants";
+import type { Classification, PermissionConfig } from "../interfaces";
+import {
+  getCommandName,
+  isHighLevel,
+  isMediumLevel,
+  isMinimalLevel,
+} from "../levels/index";
+import type { PermissionLevel } from "../types";
+import { LEVEL_INDEX } from "../types";
+
+// ============================================================================
+// COMMAND PARSING
+// ============================================================================
+
+interface ParsedCommand {
+  segments: string[][]; // Commands split by operators
+  operators: string[]; // |, &&, ||, ;
+  raw: string;
+  hasShellTricks?: boolean;
+  /** Output redirections to non-special files (>, >>) */
+  writesFiles?: boolean;
+}
+
+const hasDangerousExpansion = (command: string): boolean => {
+  const braceExpansions = command.match(/\$\{[^}]+\}/g) || [];
+  for (const expansion of braceExpansions) {
+    if (/\$\(|\`/.test(expansion)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const detectShellTricks = (command: string): boolean => {
+  if (SHELL_TRICK_PATTERNS.some((pattern) => pattern.test(command))) {
+    return true;
+  }
+  if (hasDangerousExpansion(command)) {
+    return true;
+  }
+  return false;
+};
+
+const parseCommand = (command: string): ParsedCommand => {
+  const hasShellTricks = detectShellTricks(command);
+
+  let tokens: ReturnType<typeof parse>;
+  try {
+    tokens = parse(command);
+  } catch {
+    return {
+      segments: [],
+      operators: [],
+      raw: command,
+      hasShellTricks: true,
+    };
+  }
+
+  const segments: string[][] = [];
+  const operators: string[] = [];
+  let currentSegment: string[] = [];
+  let foundCommandSubstitution = false;
+  let writesFiles = false;
+
+  let pendingOutputRedirect = false;
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+
+    if (pendingOutputRedirect) {
+      pendingOutputRedirect = false;
+      if (typeof token === "string") {
+        if (
+          !SAFE_REDIRECTION_TARGETS.has(token) &&
+          !token.startsWith("/dev/fd/")
+        ) {
+          writesFiles = true;
+        }
+      }
+      continue;
+    }
+
+    if (typeof token === "string") {
+      currentSegment.push(token);
+    } else if (token && typeof token === "object") {
+      if ("op" in token) {
+        const op = token.op as string;
+        if (ALL_REDIRECTION_OPS.has(op)) {
+          if (OUTPUT_REDIRECTION_OPS.has(op)) {
+            pendingOutputRedirect = true;
+          } else {
+            if (op === ">&" || op === "<&") {
+              const nextToken = tokens[i + 1];
+              if (typeof nextToken === "string" && /^\d+$/.test(nextToken)) {
+                i++;
+              } else {
+                pendingOutputRedirect = true;
+              }
+            }
+          }
+        } else {
+          if (COMMAND_SEPARATORS.has(op)) {
+            if (currentSegment.length > 0) {
+              segments.push(currentSegment);
+              currentSegment = [];
+            }
+            operators.push(op);
+          }
+        }
+      } else if ("comment" in token) {
+        // Comment - ignore
+      } else {
+        foundCommandSubstitution = true;
+      }
+    }
+  }
+
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
+  }
+
+  return {
+    segments,
+    operators,
+    raw: command,
+    hasShellTricks: hasShellTricks || foundCommandSubstitution,
+    writesFiles,
+  };
+};
+
+// ============================================================================
+// DANGEROUS COMMAND DETECTION
+// ============================================================================
+
+const isDangerousCommand = (tokens: string[]): boolean => {
+  if (tokens.length === 0) return false;
+
+  const cmd = getCommandName(tokens);
+  const args = tokens.slice(1);
+  const argsStr = args.join(" ");
+
+  if (cmd === "sudo") return true;
+
+  if (cmd === "rm") {
+    let hasRecursive = false;
+    let hasForce = false;
+
+    for (const arg of args) {
+      if (arg === "--recursive") hasRecursive = true;
+      if (arg === "--force") hasForce = true;
+      if (arg.startsWith("-") && !arg.startsWith("--")) {
+        if (arg.includes("r") || arg.includes("R")) hasRecursive = true;
+        if (arg.includes("f")) hasForce = true;
+      }
+    }
+
+    if (hasRecursive && hasForce) return true;
+  }
+
+  if (cmd === "chmod") {
+    if (argsStr.includes("777") || argsStr.includes("a+rwx")) return true;
+  }
+
+  if (cmd === "dd") {
+    if (argsStr.match(/of=\/dev\//)) return true;
+  }
+
+  if (["fdisk", "parted", "format"].includes(cmd)) return true;
+  if (cmd.startsWith("mkfs")) return true;
+
+  if (["shutdown", "reboot", "halt", "poweroff", "init"].includes(cmd))
+    return true;
+
+  if (tokens.join("").includes(":(){ :|:& };:")) return true;
+
+  return false;
+};
+
+// ============================================================================
+// CLASSIFY SEGMENT
+// ============================================================================
+
+const classifySegment = (tokens: string[]): Classification => {
+  if (tokens.length === 0) {
+    return { level: "minimal", dangerous: false };
+  }
+
+  const cmd = getCommandName(tokens);
+
+  if (SHELL_EXECUTION_COMMANDS.has(cmd)) {
+    return { level: "high", dangerous: false };
+  }
+
+  if (isDangerousCommand(tokens)) {
+    return { level: "high", dangerous: true };
+  }
+
+  if (isMinimalLevel(tokens)) {
+    return { level: "minimal", dangerous: false };
+  }
+
+  if (isMediumLevel(tokens)) {
+    return { level: "medium", dangerous: false };
+  }
+
+  if (isHighLevel(tokens)) {
+    return { level: "high", dangerous: false };
+  }
+
+  return { level: "high", dangerous: false };
+};
+
+// ============================================================================
+// PUBLIC CLASSIFY COMMAND
+// ============================================================================
+
+export interface CommandPermissionBreakdown {
+  /** A displayable normalized command segment. */
+  command: string;
+  level: PermissionLevel;
+  dangerous: boolean;
+}
+
+/**
+ * Break a compound shell command into its independently classified segments.
+ *
+ * This is deliberately presentation-oriented: the permission decision remains
+ * `classifyCommand()`, which also accounts for whole-command overrides and
+ * redirections. Consumers can use this breakdown to explain *which* part of a
+ * `&&`, `||`, `;`, or pipeline caused a permission prompt.
+ */
+export const getCommandPermissionBreakdown = (
+  command: string,
+  config?: PermissionConfig,
+): CommandPermissionBreakdown[] => {
+  const effectiveConfig = config ?? getCachedConfig();
+  const normalizedCommand = applyPrefixMappings(
+    command,
+    effectiveConfig.prefixMappings,
+  );
+  const parsed = parseCommand(normalizedCommand);
+  const wholeClassification = classifyCommand(command, effectiveConfig);
+
+  // Command substitutions and a whole-command override cannot be reliably
+  // attributed to a single segment, so show the full command instead.
+  if (parsed.hasShellTricks || parsed.segments.length <= 1) {
+    return [{
+      command: command.trim(),
+      level: wholeClassification.level,
+      dangerous: wholeClassification.dangerous,
+    }];
+  }
+
+  const wholeOverride = checkOverrides(
+    normalizedCommand,
+    effectiveConfig.overrides,
+  );
+  if (wholeOverride) {
+    return [{
+      command: command.trim(),
+      level: wholeOverride.level,
+      dangerous: wholeOverride.dangerous,
+    }];
+  }
+
+  return parsed.segments.map((segment) => {
+    const segmentCommand = segment.join(" ");
+    const override = checkOverrides(
+      segmentCommand,
+      effectiveConfig.overrides,
+    );
+    const classification = override ?? classifySegment(segment);
+
+    return {
+      command: segmentCommand,
+      level: classification.level,
+      dangerous: classification.dangerous,
+    };
+  });
+};
+
+export const classifyCommand = (
+  command: string,
+  config?: PermissionConfig,
+): Classification => {
+  const effectiveConfig = config ?? getCachedConfig();
+
+  const normalizedCommand = applyPrefixMappings(
+    command,
+    effectiveConfig.prefixMappings,
+  );
+
+  const parsed = parseCommand(normalizedCommand);
+
+  if (parsed.hasShellTricks) {
+    return { level: "high", dangerous: false };
+  }
+
+  const override = checkOverrides(normalizedCommand, effectiveConfig.overrides);
+
+  // Check overrides per complete command
+  if (override) return override;
+
+  let maxLevel: PermissionLevel = "minimal";
+  let dangerous = false;
+
+  if (parsed.writesFiles) {
+    maxLevel = "low";
+  }
+
+  for (let i = 0; i < parsed.segments.length; i++) {
+    const segment = parsed.segments[i];
+    const segmentClassification = classifySegment(segment);
+    const commandOverride = checkOverrides(
+      segment.join(" "),
+      effectiveConfig.overrides,
+    );
+
+    // Scan per segment (but prioritize command override)
+    const segmentClass = commandOverride ?? segmentClassification;
+
+    if (segmentClass.dangerous) {
+      dangerous = true;
+    }
+
+    if (LEVEL_INDEX[segmentClass.level] > LEVEL_INDEX[maxLevel]) {
+      maxLevel = segmentClass.level;
+    }
+
+    if (i < parsed.segments.length - 1 && parsed.operators[i] === "|") {
+      const nextCmd = getCommandName(parsed.segments[i + 1]);
+      if (
+        [
+          "bash",
+          "sh",
+          "zsh",
+          "node",
+          "python",
+          "python3",
+          "ruby",
+          "perl",
+        ].includes(nextCmd)
+      ) {
+        maxLevel = "high";
+      }
+    }
+  }
+
+  return { level: maxLevel, dangerous };
+};

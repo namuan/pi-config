@@ -1,0 +1,47 @@
+{
+  "name": "pi-permission-layers-vendor",
+  "version": "1.3.0-vendor.1",
+  "private": true,
+  "description": "Vendored Pi extension for layered permission controls",
+  "keywords": [
+    "pi",
+    "pi-package",
+    "pi-extension",
+    "permission"
+  ],
+  "author": "Gabriel Sanhueza",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gsanhueza/pi-permission-layers.git"
+  },
+  "homepage": "https://github.com/gsanhueza/pi-permission-layers#readme",
+  "bugs": {
+    "url": "https://github.com/gsanhueza/pi-permission-layers/issues"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "prettier": {
+    "plugins": [
+      "prettier-plugin-organize-imports"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "dependencies": {
+    "shell-quote": "^1.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "@types/shell-quote": "^1.7.5",
+    "prettier-plugin-organize-imports": "^4.3.0",
+    "vitest": "^4.1.8"
+  }
+}
