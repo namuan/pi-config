@@ -83,9 +83,29 @@ describe("session command approvals", () => {
     );
 
     expect(result).toMatchObject({ block: true });
+    expect((result as { reason: string }).reason).toContain(
+      "Do not send compound shell commands; use one bash command per tool call",
+    );
     expect(ctx.selectCalls[0].message).toContain("Command breakdown:");
     expect(ctx.selectCalls[0].message).toContain("read-only: git status");
     expect(ctx.selectCalls[0].message).toContain("needs approval: npm run ci");
+  });
+
+  test("offers reusable approval scopes for elevated commands in a compound command", async () => {
+    const handlers = createExtension();
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext('Allow commands beginning with "npm run" (session)');
+
+    const result = await toolCall(
+      { toolName: "bash", input: { command: "git status && npm run ci" } },
+      ctx,
+    );
+
+    expect(result).toBeUndefined();
+    expect(ctx.selectCalls).toHaveLength(1);
+    expect(ctx.selectCalls[0].options).toContain(
+      'Allow commands beginning with "npm run" (session)',
+    );
   });
 
   test("uses semantic theme colours for the command breakdown", async () => {

@@ -37,6 +37,58 @@ const themed = (
   text: string,
 ): string => theme?.fg(color, text) ?? text;
 
+type CommandApprovalTarget = {
+  command: string;
+  scopes: SessionApprovalScope[];
+};
+
+const getCommandApprovalTargets = (
+  command: string,
+): CommandApprovalTarget[] =>
+  getCommandPermissionBreakdown(command)
+    .filter((item) => item.level !== "minimal" && !item.dangerous)
+    .map((item) => ({
+      command: item.command,
+      scopes: getSessionApprovalScopes(item.command),
+    }));
+
+const scopeIsApproved = (
+  scope: SessionApprovalScope,
+  approvals: SessionApprovalScope[],
+): boolean => approvals.some((approval) => scopesMatch(approval, scope));
+
+const commandIsApproved = (
+  command: string,
+  approvals: SessionApprovalScope[],
+): boolean => {
+  const targets = getCommandApprovalTargets(command);
+  return (
+    targets.length > 0 &&
+    targets.every((target) =>
+      target.scopes.some((scope) => scopeIsApproved(scope, approvals)),
+    )
+  );
+};
+
+const getUnapprovedScopes = (
+  command: string,
+  approvals: SessionApprovalScope[],
+): SessionApprovalScope[] => {
+  const scopes = getCommandApprovalTargets(command)
+    .filter((target) => !target.scopes.some((scope) => scopeIsApproved(scope, approvals)))
+    .flatMap((target) => target.scopes);
+
+  return scopes.filter(
+    (scope, index) =>
+      scopes.findIndex((candidate) => scopesMatch(candidate, scope)) === index,
+  );
+};
+
+const cancellationReason = (command: string): string =>
+  getCommandPermissionBreakdown(command).length > 1
+    ? "Cancelled by the user. Do not retry or circumvent. Do not send compound shell commands; use one bash command per tool call so each action can be reviewed separately."
+    : "Cancelled by the user. Do not attempt to repeat or circumvent.";
+
 const formatCommandBreakdown = (
   command: string,
   theme?: BreakdownTheme,
@@ -105,15 +157,11 @@ export default function (pi: ExtensionAPI) {
       if (choice === "Allow once") return undefined;
       return {
         block: true,
-        reason: "Cancelled by the user. Do not attempt to repeat or circumvent.",
+        reason: cancellationReason(command),
       };
     }
 
-    const scopes = getSessionApprovalScopes(command);
-    const isApproved = scopes.some((candidate) =>
-      sessionApprovals.some((allowed) => scopesMatch(allowed, candidate)),
-    );
-    if (isApproved) return undefined;
+    if (commandIsApproved(command, sessionApprovals)) return undefined;
 
     if (!ctx.hasUI) {
       return {
@@ -122,30 +170,34 @@ export default function (pi: ExtensionAPI) {
       };
     }
 
-    const scopeOptions = scopes.map((scope) => ({
-      scope,
-      label: getSessionApprovalScopeLabel(scope),
-    }));
-    const scopeSummary = scopeOptions.length > 0
-      ? "Choose an exact command, command/subcommand prefix, or executable prefix. Approvals last only for this session."
-      : "This command uses compound shell syntax, so it can only be approved once.";
-    const choice = await ctx.ui.select(
-      `Session approval required:\n\n$ ${command}\n\n${breakdown}\n\n${scopeSummary}`,
-      ["Allow once", ...scopeOptions.map((option) => option.label), "Cancel"],
-    );
+    while (true) {
+      const scopes = getUnapprovedScopes(command, sessionApprovals);
+      const scopeOptions = scopes.map((scope) => ({
+        scope,
+        label: getSessionApprovalScopeLabel(scope),
+      }));
+      const scopeSummary = scopeOptions.length > 0
+        ? "Choose an exact command, command/subcommand prefix, or executable prefix. Approvals last only for this session."
+        : "This command uses shell syntax that cannot receive a reusable approval.";
+      const choice = await ctx.ui.select(
+        `Session approval required:\n\n$ ${command}\n\n${breakdown}\n\n${scopeSummary}`,
+        ["Allow once", ...scopeOptions.map((option) => option.label), "Cancel"],
+      );
 
-    if (choice === "Allow once") return undefined;
+      if (choice === "Allow once") return undefined;
 
-    const selected = scopeOptions.find((option) => option.label === choice);
-    if (selected) {
-      sessionApprovals.push(selected.scope);
-      ctx.ui.notify(`Session approval: ${selected.label}`, "info");
-      return undefined;
+      const selected = scopeOptions.find((option) => option.label === choice);
+      if (selected) {
+        sessionApprovals.push(selected.scope);
+        ctx.ui.notify(`Session approval: ${selected.label}`, "info");
+        if (commandIsApproved(command, sessionApprovals)) return undefined;
+        continue;
+      }
+
+      return {
+        block: true,
+        reason: cancellationReason(command),
+      };
     }
-
-    return {
-      block: true,
-      reason: "Cancelled by the user. Do not attempt to repeat or circumvent.",
-    };
   });
 }
