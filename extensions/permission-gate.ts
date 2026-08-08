@@ -2,9 +2,10 @@
  * Permission Gate Extension — ported from ~/.config/opencode/opencode.json
  *
  * Enforces the bash / read / write / edit rules the user had in opencode:
- *   - deny: forced pushes, git commit/push (subagent context), .env / credentials
- *     reads & deletions, secret-file reads (read tool), edits to ~/.ssh and ~/.docker
- *   - ask:  git reset --hard, git clean, rm -rf, non-readonly git commands
+ *   - deny: forced pushes, .env / credentials reads & deletions, secret-file
+ *     reads, edits to ~/.ssh and ~/.docker
+ *   - ask:  git reset --hard, git clean, rm -rf, and non-readonly Git commands
+ *     other than commits (commits use permission-layers safety scoring)
  *   - allow: read-only git commands (status, diff, log, show, ...)
  *
  * In non-interactive mode (subagent processes, -p), "ask" becomes "block".
@@ -46,11 +47,12 @@ const READ_DENY: RegExp[] = [
 
 const WRITE_DENY: RegExp[] = [globToRegex("~/.ssh/**"), globToRegex("~/.docker/**"), globToRegex(".env*"), globToRegex("**/.env*")];
 
-// Git subcommands that are read-only (or non-destructive staging) and always allowed
-function isGitReadonly(sub: string): boolean {
+// Git subcommands allowed through this hard gate. Commits are evaluated by the
+// permission-layers scorer; other entries are read-only (or non-destructive staging).
+function isGitGateAllowed(sub: string): boolean {
 	const [cmd, ...rest] = sub.trim().split(/\s+/);
 	if (cmd === "stash") return rest[0] === "list" || rest[0] === "show";
-	return /^(notes|status|diff|log|show|blame|grep|reflog|describe|ls-files|rev-parse|rev-list|cat-file|ls-tree|shortlog|whatchanged|for-each-ref|name-rev|cherry|merge-base|check-attr|check-ignore|fsck|help|version|add)$/.test(
+	return /^(commit|notes|status|diff|log|show|blame|grep|reflog|describe|ls-files|rev-parse|rev-list|cat-file|ls-tree|shortlog|whatchanged|for-each-ref|name-rev|cherry|merge-base|check-attr|check-ignore|fsck|help|version|add)$/.test(
 		cmd ?? "",
 	);
 }
@@ -61,8 +63,6 @@ const BASH_RULES: Array<[RegExp, "deny" | "ask"]> = [
 	[/git\s+push\b[^|&;]*?(--force|-f\b)/i, "deny"],
 	// any push — deny (executors must never push)
 	[/(^|\s)(env\s+)?(git|git\.exe)(\s+-[a-zA-Z][a-zA-Z0-9-]*)*(\s+[a-z][a-z0-9-]*)*\s+push\b/i, "deny"],
-	// any commit — ask
-	[/(^|\s)(env\s+)?(git|git\.exe)(\s+-[a-zA-Z][a-zA-Z0-9-]*)*(\s+[a-z][a-z0-9-]*)*\s+commit\b/i, "ask"],
 	// git reset --hard / clean — ask
 	[/git\s+(reset\s+--hard|clean)/i, "ask"],
 	// recursive file removal (rm -r, rm -rf, rm -fr, ...) — ask
@@ -80,7 +80,7 @@ function bashDecision(command: string): "allow" | "ask" | "deny" {
 	}
 	const gitMatch = trimmed.match(/^(env\s+)?(git|git\.exe)\s+(.+)$/i);
 	if (gitMatch) {
-		return isGitReadonly(gitMatch[3]) ? "allow" : "ask";
+		return isGitGateAllowed(gitMatch[3]) ? "allow" : "ask";
 	}
 	return "allow";
 }
@@ -124,7 +124,7 @@ export default function (pi: ExtensionAPI) {
 			const decision = bashDecision(command);
 
 			if (decision === "deny") {
-				return { block: true, reason: "Blocked: command matches deny rule (git push/commit, .env reads, credential removal)" };
+				return { block: true, reason: "Blocked: command matches deny rule (git push, .env reads, credential removal)" };
 			}
 
 			if (decision === "ask") {
