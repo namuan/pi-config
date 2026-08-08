@@ -5,7 +5,8 @@
  *   - deny: forced pushes, .env / credentials reads & deletions, secret-file
  *     reads, edits to ~/.ssh and ~/.docker
  *   - ask:  git reset --hard, git clean, rm -rf, and non-readonly Git commands
- *     other than commits (commits use permission-layers safety scoring)
+ *     other than commits. In interactive sessions, permission-layers renders
+ *     the single, detailed approval UI for these commands.
  *   - allow: read-only git commands (status, diff, log, show, ...)
  *
  * In non-interactive mode (subagent processes, -p), "ask" becomes "block".
@@ -131,8 +132,9 @@ export default function (pi: ExtensionAPI) {
 				if (!ctx.hasUI) {
 					return { block: true, reason: "Blocked: command requires confirmation but no UI is available" };
 				}
-				const choice = await ctx.ui.confirm("Allow command?", `$ ${command}\n\nThis command requires approval per your permission rules.`);
-				if (!choice) return { block: true, reason: "Blocked by user" };
+				// permission-layers owns the interactive approval UI so users receive
+				// one prompt with the command breakdown and safety score.
+				return undefined;
 			}
 		}
 
