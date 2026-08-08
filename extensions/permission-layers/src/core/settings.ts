@@ -12,6 +12,18 @@ export interface StoredCommandApproval {
   tokens: string[];
 }
 
+export interface CommandSafetyConfig {
+  provider: string;
+  model: string;
+  autoApproveScore: number;
+}
+
+const DEFAULT_COMMAND_SAFETY_CONFIG: CommandSafetyConfig = {
+  provider: "opencode-go",
+  model: "deepseek-v4-flash",
+  autoApproveScore: 70,
+};
+
 const settingsPath = () => join(getAgentDir(), "settings.json");
 
 const loadSettings = (): Record<string, unknown> => {
@@ -88,6 +100,29 @@ export const loadPermissionConfig = (): PermissionConfig => {
     ...(overrides ? { overrides } : {}),
     ...(prefixMappings.length > 0 ? { prefixMappings } : {}),
   };
+};
+
+/** Load the model and threshold used by the command safety scorer. */
+export const loadCommandSafetyConfig = (): CommandSafetyConfig => {
+  const raw = loadSettings().commandSafety;
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_COMMAND_SAFETY_CONFIG };
+
+  const config = raw as Record<string, unknown>;
+  const provider = typeof config.provider === "string" && config.provider.trim()
+    ? config.provider.trim()
+    : DEFAULT_COMMAND_SAFETY_CONFIG.provider;
+  const model = typeof config.model === "string" && config.model.trim()
+    ? config.model.trim()
+    : DEFAULT_COMMAND_SAFETY_CONFIG.model;
+  const autoApproveScore =
+    typeof config.autoApproveScore === "number" &&
+    Number.isFinite(config.autoApproveScore) &&
+    config.autoApproveScore >= 0 &&
+    config.autoApproveScore <= 100
+      ? config.autoApproveScore
+      : DEFAULT_COMMAND_SAFETY_CONFIG.autoApproveScore;
+
+  return { provider, model, autoApproveScore };
 };
 
 /** Load user-approved command scopes that apply to every Pi session. */

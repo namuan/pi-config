@@ -20,8 +20,10 @@ import {
   type SessionApprovalScope,
 } from "./src/core/classifiers/shell-classifier";
 import {
+  loadCommandSafetyConfig,
   loadGlobalCommandApprovals,
   saveGlobalCommandApprovals,
+  type CommandSafetyConfig,
 } from "./src/core/settings";
 
 const scopesMatch = (
@@ -47,8 +49,6 @@ type SafetyRating = {
   reason: string;
 };
 
-const SAFETY_MODEL = { provider: "opencode-go", id: "deepseek-v4-flash" };
-const AUTO_APPROVE_SCORE = 70;
 
 const extractSafetyRating = (text: string): SafetyRating | undefined => {
   const match = text.match(/\{[\s\S]*\}/);
@@ -72,9 +72,10 @@ const extractSafetyRating = (text: string): SafetyRating | undefined => {
 const rateCommandSafety = async (
   command: string,
   breakdown: string,
+  config: CommandSafetyConfig,
   ctx: ExtensionContext,
 ): Promise<SafetyRating | undefined> => {
-  const model = ctx.modelRegistry?.find(SAFETY_MODEL.provider, SAFETY_MODEL.id);
+  const model = ctx.modelRegistry?.find(config.provider, config.model);
   if (!model || !ctx.modelRegistry.hasConfiguredAuth(model)) return undefined;
 
   const prompt = [
@@ -231,6 +232,8 @@ export default function (pi: ExtensionAPI) {
     if (event.toolName !== "bash") return undefined;
 
     const command = String((event.input as { command?: unknown }).command ?? "");
+    const safetyConfig = loadCommandSafetyConfig();
+    const safetyCacheKey = `${safetyConfig.provider}/${safetyConfig.model}\u0000${command}`;
     const classification = classifyCommand(command);
     const theme = ctx.hasUI ? (ctx.ui.theme as BreakdownTheme | undefined) : undefined;
     const deterministicBreakdown = formatCommandBreakdown(command);
@@ -243,11 +246,16 @@ export default function (pi: ExtensionAPI) {
     let rating: SafetyRating | undefined;
     if (classification.dangerous) {
       rating = { score: 0, reason: "deterministic dangerous-command match" };
-    } else if (safetyRatings.has(command)) {
-      rating = safetyRatings.get(command);
+    } else if (safetyRatings.has(safetyCacheKey)) {
+      rating = safetyRatings.get(safetyCacheKey);
     } else {
-      rating = await rateCommandSafety(command, deterministicBreakdown, ctx);
-      safetyRatings.set(command, rating);
+      rating = await rateCommandSafety(
+        command,
+        deterministicBreakdown,
+        safetyConfig,
+        ctx,
+      );
+      safetyRatings.set(safetyCacheKey, rating);
     }
     const breakdown = `${displayBreakdown}\n${formatSafetyRating(rating, theme)}`;
 
@@ -274,7 +282,7 @@ export default function (pi: ExtensionAPI) {
     // This is experimental and deliberately strict: 70 itself still requires
     // confirmation, an unavailable score fails closed, and hard-policy gates
     // remain separate extension handlers.
-    if (rating && rating.score > AUTO_APPROVE_SCORE) {
+    if (rating && rating.score > safetyConfig.autoApproveScore) {
       if (ctx.hasUI) {
         ctx.ui.notify(
           `✓ auto-approved\n$ ${command}\n${formatSafetyRating(rating, theme)}`,

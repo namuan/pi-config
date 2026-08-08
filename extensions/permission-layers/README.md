@@ -12,8 +12,24 @@ A vendored Pi extension that requires an explicit, session-only approval for non
 - Session scopes clear when the session ends. You can also choose a global scope, which persists in `~/.pi/agent/settings.json` and applies to future sessions.
 - Compound commands show a per-command breakdown and offer reusable scopes for each elevated command. Every elevated segment must be approved before the compound command runs.
 - Dangerous commands require a one-time confirmation and cannot receive a reusable scope.
-- Non-read-only commands receive a safety score from `opencode-go/deepseek-v4-flash`. Scores are cached for the session. As an experiment, scores above 70 auto-approve; 70 and below, unavailable scores, and dangerous commands still require confirmation. Hard policy gates remain independent.
+- Non-read-only commands receive a safety score. Scores are cached for the session. As an experiment, scores above the configured threshold auto-approve; scores at or below it, unavailable scores, and dangerous commands still require confirmation. Hard policy gates remain independent.
 - Approvals clear on session start, reload, or restart.
+
+## Safety scorer configuration
+
+Configure the scorer in Pi’s global `~/.pi/agent/settings.json`:
+
+```json
+{
+  "commandSafety": {
+    "provider": "opencode-go",
+    "model": "deepseek-v4-flash",
+    "autoApproveScore": 70
+  }
+}
+```
+
+The provider/model must be available and authenticated. An unavailable score fails closed and shows the normal approval dialog.
 
 ## Dangerous commands
 
