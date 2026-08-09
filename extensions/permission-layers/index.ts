@@ -2,8 +2,8 @@
  * Session command approvals for Pi.
  *
  * Read-only shell commands run normally. Other commands require a narrow,
- * explicit session approval unless the safety scorer rates them above the
- * experimental auto-approval threshold; the existing permission-gate extension
+ * explicit session approval unless the safety scorer rates them at or above
+ * the experimental auto-approval threshold; the existing permission-gate extension
  * remains responsible for protected paths and organization-specific policies.
  */
 
@@ -279,10 +279,10 @@ export default function (pi: ExtensionAPI) {
       };
     }
 
-    // This is experimental and deliberately strict: 70 itself still requires
-    // confirmation, an unavailable score fails closed, and hard-policy gates
+    // This is experimental: scores at or above the configured threshold
+    // auto-approve, unavailable scores fail closed, and hard-policy gates
     // remain separate extension handlers.
-    if (rating && rating.score > safetyConfig.autoApproveScore) {
+    if (rating && rating.score >= safetyConfig.autoApproveScore) {
       if (ctx.hasUI) {
         ctx.ui.notify(
           `✓ auto-approved\n$ ${command}\n${formatSafetyRating(rating, theme)}`,

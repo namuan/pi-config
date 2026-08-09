@@ -135,7 +135,7 @@ describe("session command approvals", () => {
     );
   });
 
-  test("shows an advisory score from the cheap safety model", async () => {
+  test("auto-approves a score at the configured threshold", async () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel") as any;
@@ -152,17 +152,19 @@ describe("session command approvals", () => {
       ctx,
     );
 
-    expect(result).toMatchObject({ block: true });
+    expect(result).toBeUndefined();
     expect(ctx.modelRegistry.find).toHaveBeenCalledWith(
       "opencode-go",
       "deepseek-v4-flash",
     );
-    expect(ctx.selectCalls[0].message).toContain(
-      "◆ safety 70/100 · local reversible development task",
+    expect(ctx.selectCalls).toHaveLength(0);
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "✓ auto-approved\n$ npm run test\n◆ safety 70/100 · local reversible development task",
+      "info",
     );
   });
 
-  test("auto-approves only safety scores above 70", async () => {
+  test("auto-approves safety scores above 70", async () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel") as any;

@@ -6,13 +6,14 @@ and a permission gate.
 
 ## Contents
 
-- `agents/` — subagent definitions for the `subagent` tool: the axiom
-  scout/sage router pair and the TDD red-green-refactor cycle (lead, red,
-  green, refactor, reviewer)
-- `prompts/` — slash-command templates, type `/` in pi to use them. Each one
-  is a thin *delegation launcher* that tells the main model to call the
-  `subagent` tool for the matching agent: `/tdd-lead <task>` runs the TDD
-  cycle in isolated subagents and returns findings.
+- `agents/` — subagent definitions for the `subagent` tool: the axiom sage
+  verifier and the TDD red-green-refactor cycle (lead, red, green, refactor,
+  reviewer)
+- `prompts/` — slash-command templates, type `/` in pi to use them. The
+  `/axiom-scout <task>` template runs the Scout orchestration workflow in the
+  primary session and delegates planning and verification to the `axiom-sage`
+  subagent. The TDD templates remain thin delegation launchers for their
+  matching agents.
 - `extensions/` — `permission-gate.ts` (blocks git push/commit, `.env` reads,
   secret-file access) and `subagent/` (isolated pi subprocess delegation)
 
