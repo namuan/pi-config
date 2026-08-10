@@ -43,7 +43,7 @@ The session-approval classifier marks these as dangerous:
 - the canonical shell fork bomb: `:(){ :|:& };:`
 - any command matching a user-defined `permissionConfig.overrides.dangerous` pattern
 
-The separate `permission-gate.ts` hard policy may also block or require confirmation for additional commands, including Git pushes, commits, secret access, destructive Git operations, and recursive deletion.
+The separate `permission-gate.ts` hard policy may also block or require confirmation for additional commands, including secret access, destructive Git operations, and recursive deletion. Git commits and pushes are evaluated by this extension’s safety scorer.
 - In print/non-interactive mode, unapproved commands are blocked.
 
 This extension does not maintain permission levels or register `/permission` commands. The separate `permission-gate.ts` extension remains the hard-policy layer for protected paths, credentials, Git rules, and destructive operations.
