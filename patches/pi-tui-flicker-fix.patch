@@ -1,0 +1,33 @@
+--- a/node_modules/@earendil-works/pi-tui/dist/tui-main-screen.js
++++ b/node_modules/@earendil-works/pi-tui/dist/tui-main-screen.js
+@@ -284,6 +284,30 @@
+             lastChanged = expandedRange.lastChanged;
+         }
+         const appendStart = appendedLines && firstChanged === this.previousLines.length && firstChanged > 0;
++        // Local fix (flicker): when every change is above the visible viewport and the
++        // line count is unchanged, the visible screen cannot change, so skip writing
++        // entirely. Without this, an off-screen animation (e.g. a loader spinner in a
++        // scrolled-up tool block) hits the `firstChanged < prevViewportTop` full-redraw
++        // branch on every tick: [2J clear + repaint of the whole buffer (~2MB), which
++        // appears as continuous flicker in terminals without synchronized-output support.
++        if (firstChanged !== -1 && lastChanged < prevViewportTop && newLines.length === this.previousLines.length) {
++            let changedImages = false;
++            const scanEnd = Math.min(lastChanged, Math.max(newLines.length, this.previousLines.length) - 1);
++            for (let i = firstChanged; i <= scanEnd; i++) {
++                if (isImageLine(newLines[i] ?? "") || isImageLine(this.previousLines[i] ?? "")) {
++                    changedImages = true;
++                    break;
++                }
++            }
++            if (!changedImages) {
++                this.previousLines = newLines;
++                this.previousKittyImageIds = this.collectKittyImageIds(newLines);
++                this.previousWidth = width;
++                this.previousHeight = height;
++                this.previousViewportTop = prevViewportTop;
++                return;
++            }
++        }
+         // No changes - but still need to update hardware cursor position if it moved
+         if (firstChanged === -1) {
+             this.positionHardwareCursor(cursorPos, newLines.length);

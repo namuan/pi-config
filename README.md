@@ -16,6 +16,8 @@ and a permission gate.
   matching agents.
 - `extensions/` — `permission-gate.ts` (blocks git push/commit, `.env` reads,
   secret-file access) and `subagent/` (isolated pi subprocess delegation)
+- `patches/` — local fixes for pi's bundled packages; re-apply after pi updates
+  (see [Applying patches](#applying-patches))
 
 ## Install
 
@@ -34,6 +36,18 @@ ln -s <repo>/extensions ~/.pi/agent/extensions
 
 Then restart pi. Type `/` for the prompt templates; ask the model to use the
 `subagent` tool to delegate to an agent.
+
+## Applying patches
+
+`patches/` holds local fixes to pi's bundled packages. Paths in the patch files
+are relative to the pi installation root:
+
+```sh
+cd "$(npm root -g)/@earendil-works/pi-coding-agent"   # pi install root
+patch -p1 < ~/.pi/agent/patches/pi-tui-flicker-fix.patch
+```
+
+Re-run after every `pi update` that touches the patched package.
 
 ## Notes
 
