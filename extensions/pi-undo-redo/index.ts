@@ -1192,6 +1192,16 @@ async function execFile(
       if (!opts.allowFailure && result.code !== 0) reject(new Error(result.stderr || result.stdout || `${command} exited ${result.code}`));
       else resolve(result);
     });
+    // The child may exit before consuming stdin (e.g. git aborts early on a
+    // fatal error or lock conflict). The pending write then fails with EPIPE,
+    // which is emitted as an 'error' event on the stdin stream. Without a
+    // listener that error becomes an uncaughtException that crashes the host,
+    // even though the promise below already settled via the 'close' handler.
+    // Failures are still surfaced through the promise (exit code + stderr), so
+    // swallowing the stream-level errors here is safe.
+    child.stdin.on("error", () => {});
+    child.stdout.on("error", () => {});
+    child.stderr.on("error", () => {});
     if (opts.stdin !== undefined) child.stdin.end(opts.stdin);
     else child.stdin.end();
   });
