@@ -39,15 +39,17 @@ Then restart pi. Type `/` for the prompt templates; ask the model to use the
 
 ## Applying patches
 
-`patches/` holds local fixes to pi's bundled packages. Paths in the patch files
-are relative to the pi installation root:
+`patches/` holds local fixes to pi's bundled packages. Apply them all (or
+check/revert) with the script — it resolves the pi install root from the `pi`
+binary on PATH and skips patches that are already applied:
 
 ```sh
-cd "$(npm root -g)/@earendil-works/pi-coding-agent"   # pi install root
-patch -p1 < ~/.pi/agent/patches/pi-tui-flicker-fix.patch
+~/.pi/agent/patches/apply.sh            # apply all (idempotent)
+~/.pi/agent/patches/apply.sh status     # applied state of each patch
+~/.pi/agent/patches/apply.sh revert     # undo all (reverse order)
 ```
 
-Re-run after every `pi update` that touches the patched package.
+Run `apply.sh` again after every `pi update` that touches a patched package.
 
 ## Notes
 
