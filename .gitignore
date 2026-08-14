@@ -17,5 +17,11 @@ models.json
 # Local npm packages installed by pi
 npm/
 
+# pi-managed package clones (regenerable via pi install)
+git/
+
+# Runtime state incl. pi-undo-redo workspace snapshots (may contain file contents)
+state/
+
 # Extension dependencies are installed from their tracked package-lock.json files
 node_modules/
