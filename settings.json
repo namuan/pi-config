@@ -1,0 +1,28 @@
+{
+  "defaultProvider": "llama",
+  "defaultModel": "local-qwen3.8-27b",
+  "theme": "light",
+  "defaultThinkingLevel": "high",
+  "commandSafety": {
+    "provider": "opencode-go",
+    "model": "deepseek-v4-flash",
+    "autoApproveScore": 70
+  },
+  "commandApprovals": [
+    {
+      "kind": "exact",
+      "tokens": [
+        "npm",
+        "run",
+        "test:e2e"
+      ]
+    }
+  ],
+  "enabledModels": [
+    "opencode-go/deepseek-v4-flash:max",
+    "opencode-go/gpt-5.6-luna:xhigh",
+    "openai-codex/gpt-5.6-terra:high"
+  ],
+  "packages": [],
+  "hideThinkingBlock": false
+}
