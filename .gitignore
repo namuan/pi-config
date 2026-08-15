@@ -5,7 +5,6 @@ auth.json
 sessions/
 models-store.json
 trust.json
-models.json
 
 # macOS
 .DS_Store
