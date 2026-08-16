@@ -2,8 +2,8 @@
 export const getSettingsMock = () => ({
   loadPermissionConfig: () => ({}),
   loadCommandSafetyConfig: () => ({
-    provider: "opencode-go",
-    model: "deepseek-v4-flash",
+    provider: "nvidia",
+    model: "meta/llama-3.1-8b-instruct",
     autoApproveScore: 70,
   }),
   loadGlobalCommandApprovals: () => [],

@@ -140,7 +140,7 @@ describe("session command approvals", () => {
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel") as any;
     ctx.modelRegistry = {
-      find: vi.fn(() => ({ provider: "opencode-go", id: "deepseek-v4-flash" })),
+      find: vi.fn(() => ({ provider: "nvidia", id: "meta/llama-3.1-8b-instruct" })),
       hasConfiguredAuth: vi.fn(() => true),
       complete: vi.fn(async () => ({
         content: [{ type: "text", text: '{"score":70,"reason":"local reversible development task"}' }],
@@ -154,8 +154,8 @@ describe("session command approvals", () => {
 
     expect(result).toBeUndefined();
     expect(ctx.modelRegistry.find).toHaveBeenCalledWith(
-      "opencode-go",
-      "deepseek-v4-flash",
+      "nvidia",
+      "meta/llama-3.1-8b-instruct",
     );
     expect(ctx.selectCalls).toHaveLength(0);
     expect(ctx.ui.notify).toHaveBeenCalledWith(
@@ -169,7 +169,7 @@ describe("session command approvals", () => {
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel") as any;
     ctx.modelRegistry = {
-      find: vi.fn(() => ({ provider: "opencode-go", id: "deepseek-v4-flash" })),
+      find: vi.fn(() => ({ provider: "nvidia", id: "meta/llama-3.1-8b-instruct" })),
       hasConfiguredAuth: vi.fn(() => true),
       complete: vi.fn(async () => ({
         content: [{ type: "text", text: '{"score":71,"reason":"local reversible development task"}' }],

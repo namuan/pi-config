@@ -10,7 +10,7 @@ A vendored Pi extension that requires an explicit, session-only approval for non
   - its command/subcommand prefix, for example `npm run`
   - its executable prefix, for example `npm`
 - Session scopes clear when the session ends. You can also choose a global scope, which persists in `~/.pi/agent/settings.json` and applies to future sessions.
-- Compound commands show a per-command breakdown and offer reusable scopes for each elevated command. Every elevated segment must be approved before the compound command runs.
+- Compound commands show a per-command breakdown and offer reusable scopes for each elevated command. Every elevated segment must be approved before the compound command runs. Agents should use one bash command per tool call instead of bundling background jobs, loops, process termination, command substitutions, or long pipelines.
 - Dangerous commands require a one-time confirmation and cannot receive a reusable scope.
 - Non-read-only commands receive a safety score. Scores are cached for the session. As an experiment, scores at or above the configured threshold auto-approve; scores below it, unavailable scores, and dangerous commands still require confirmation. Hard policy gates remain independent.
 - Approvals clear on session start, reload, or restart.
@@ -22,8 +22,8 @@ Configure the scorer in Pi’s global `~/.pi/agent/settings.json`:
 ```json
 {
   "commandSafety": {
-    "provider": "opencode-go",
-    "model": "deepseek-v4-flash",
+    "provider": "nvidia",
+    "model": "meta/llama-3.1-8b-instruct",
     "autoApproveScore": 70
   }
 }
