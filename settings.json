@@ -1,8 +1,8 @@
 {
   "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultModel": "hy3",
   "theme": "light",
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "high",
   "commandSafety": {
     "provider": "nvidia",
     "model": "meta/llama-3.1-8b-instruct",
@@ -20,7 +20,7 @@
   ],
   "enabledModels": [
     "opencode-go/deepseek-v4-flash:max",
-    "opencode-go/gpt-5.6-luna:xhigh",
+    "openai-codex/gpt-5.6-luna:high",
     "openai-codex/gpt-5.6-terra:high"
   ],
   "packages": [],
