@@ -225,9 +225,32 @@ export default function (pi: ExtensionAPI) {
   const sessionApprovals: SessionApprovalScope[] = [];
   const safetyRatings = new Map<string, SafetyRating | undefined>();
   let globalApprovals: SessionApprovalScope[] = [];
+  let approvalsDisabled = false;
+
+  pi.registerCommand("approvals", {
+    description: "Enable or disable session command approvals",
+    handler: async (args, ctx) => {
+      const action = args.trim().toLowerCase();
+      if (action === "off") {
+        approvalsDisabled = true;
+        ctx.ui.notify("Command approvals disabled for this session.", "warning");
+        return;
+      }
+      if (action === "on") {
+        approvalsDisabled = false;
+        ctx.ui.notify("Command approvals enabled.", "info");
+        return;
+      }
+      ctx.ui.notify(
+        `Command approvals are ${approvalsDisabled ? "disabled" : "enabled"}. Use /approvals on|off.`,
+        "info",
+      );
+    },
+  });
 
   pi.on("session_start", () => {
     sessionApprovals.length = 0;
+    approvalsDisabled = false;
     safetyRatings.clear();
     globalApprovals = loadGlobalCommandApprovals().map((approval) => ({
       kind: approval.kind,
@@ -241,6 +264,10 @@ export default function (pi: ExtensionAPI) {
     const command = String((event.input as { command?: unknown }).command ?? "");
     const safetyConfig = loadCommandSafetyConfig();
     const safetyCacheKey = `${safetyConfig.provider}/${safetyConfig.model}\u0000${command}`;
+    // This is a session-only explicit bypass. Hard-deny policy extensions still
+    // run independently and can block protected commands.
+    if (approvalsDisabled) return undefined;
+
     const classification = classifyCommand(command);
     const theme = ctx.hasUI ? (ctx.ui.theme as BreakdownTheme | undefined) : undefined;
     const deterministicBreakdown = formatCommandBreakdown(command);

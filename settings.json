@@ -1,8 +1,8 @@
 {
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-luna",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "ox-alpha-free",
   "theme": "light",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "high",
   "commandSafety": {
     "provider": "nvidia",
     "model": "meta/llama-3.1-8b-instruct",
@@ -20,8 +20,9 @@
   ],
   "enabledModels": [
     "opencode-go/deepseek-v4-flash:max",
-    "openai-codex/gpt-5.6-luna:high",
-    "openai-codex/gpt-5.6-terra:high"
+    "openai-codex/gpt-5.6-sol:high",
+    "openai-codex/gpt-5.6-terra:high",
+    "openai-codex/gpt-5.6-luna:high"
   ],
   "packages": [],
   "hideThinkingBlock": false,

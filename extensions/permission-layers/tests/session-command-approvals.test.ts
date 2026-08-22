@@ -11,6 +11,8 @@ const createExtension = () => {
   const handlers = new Map<string, Handler>();
   sessionCommandApprovals({
     on: (event: string, handler: Handler) => handlers.set(event, handler),
+    registerCommand: (name: string, command: { handler: Handler }) =>
+      handlers.set(`command:${name}`, command.handler),
   } as any);
   return handlers;
 };
@@ -32,6 +34,33 @@ const createContext = (choice: string | string[]) => {
 };
 
 describe("session command approvals", () => {
+  test("can disable approvals for the current session", async () => {
+    const handlers = createExtension();
+    const approvalsCommand = handlers.get("command:approvals")!;
+    const toolCall = handlers.get("tool_call")!;
+    const ctx = createContext("Cancel");
+
+    await approvalsCommand("off", ctx);
+    const bypassed = await toolCall(
+      { toolName: "bash", input: { command: "sudo reboot" } },
+      ctx,
+    );
+
+    expect(bypassed).toBeUndefined();
+    expect(ctx.selectCalls).toHaveLength(0);
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "Command approvals disabled for this session.",
+      "warning",
+    );
+
+    await handlers.get("session_start")!({}, ctx);
+    const afterRestart = await toolCall(
+      { toolName: "bash", input: { command: "sudo reboot" } },
+      ctx,
+    );
+    expect(afterRestart).toMatchObject({ block: true });
+  });
+
   test("offers scoped approvals without a global permission level", async () => {
     const handlers = createExtension();
     const start = handlers.get("session_start")!;
