@@ -34,31 +34,41 @@ const createContext = (choice: string | string[]) => {
 };
 
 describe("session command approvals", () => {
-  test("can disable approvals for the current session", async () => {
+  test("starts with approvals disabled and can enable them for the session", async () => {
     const handlers = createExtension();
     const approvalsCommand = handlers.get("command:approvals")!;
     const toolCall = handlers.get("tool_call")!;
+    const start = handlers.get("session_start")!;
     const ctx = createContext("Cancel");
 
-    await approvalsCommand("off", ctx);
-    const bypassed = await toolCall(
+    const bypassedByDefault = await toolCall(
       { toolName: "bash", input: { command: "sudo reboot" } },
       ctx,
     );
-
-    expect(bypassed).toBeUndefined();
+    expect(bypassedByDefault).toBeUndefined();
     expect(ctx.selectCalls).toHaveLength(0);
+
+    await approvalsCommand("on", ctx);
+    const afterEnable = await toolCall(
+      { toolName: "bash", input: { command: "sudo reboot" } },
+      ctx,
+    );
+    expect(afterEnable).toMatchObject({ block: true });
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Command approvals disabled for this session.",
-      "warning",
+      "Command approvals enabled.",
+      "info",
     );
 
-    await handlers.get("session_start")!({}, ctx);
+    await start({}, ctx);
     const afterRestart = await toolCall(
       { toolName: "bash", input: { command: "sudo reboot" } },
       ctx,
     );
-    expect(afterRestart).toMatchObject({ block: true });
+    expect(afterRestart).toBeUndefined();
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "Command approvals are disabled for this session by default. Use /approvals on to enable them.",
+      "warning",
+    );
   });
 
   test("offers scoped approvals without a global permission level", async () => {
@@ -69,6 +79,7 @@ describe("session command approvals", () => {
     const firstCtx = createContext(prefixLabel);
 
     await start({}, firstCtx);
+    await handlers.get("command:approvals")!("on", firstCtx);
     const firstResult = await toolCall(
       { toolName: "bash", input: { command: "npm run test" } },
       firstCtx,
@@ -96,6 +107,7 @@ describe("session command approvals", () => {
     expect(laterCtx.selectCalls).toHaveLength(0);
 
     await start({}, laterCtx);
+    await handlers.get("command:approvals")!("on", laterCtx);
     const afterRestartResult = await toolCall(
       { toolName: "bash", input: { command: "npm run ci" } },
       laterCtx,
@@ -113,6 +125,7 @@ describe("session command approvals", () => {
     ]);
 
     await start({}, ctx);
+    await handlers.get("command:approvals")!("on", ctx);
     const result = await toolCall(
       { toolName: "bash", input: { command: "npm run test" } },
       ctx,
@@ -130,6 +143,8 @@ describe("session command approvals", () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel");
+    await handlers.get("session_start")!({}, ctx);
+    await handlers.get("command:approvals")!("on", ctx);
 
     const result = await toolCall(
       { toolName: "bash", input: { command: "git status && npm run ci" } },
@@ -151,6 +166,8 @@ describe("session command approvals", () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext('Allow commands beginning with "npm run" (session)');
+    await handlers.get("session_start")!({}, ctx);
+    await handlers.get("command:approvals")!("on", ctx);
 
     const result = await toolCall(
       { toolName: "bash", input: { command: "git status && npm run ci" } },
@@ -168,6 +185,8 @@ describe("session command approvals", () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel") as any;
+    await handlers.get("session_start")!({}, ctx);
+    await handlers.get("command:approvals")!("on", ctx);
     ctx.modelRegistry = {
       find: vi.fn(() => ({ provider: "nvidia", id: "meta/llama-3.1-8b-instruct" })),
       hasConfiguredAuth: vi.fn(() => true),
@@ -197,6 +216,8 @@ describe("session command approvals", () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel") as any;
+    await handlers.get("session_start")!({}, ctx);
+    await handlers.get("command:approvals")!("on", ctx);
     ctx.modelRegistry = {
       find: vi.fn(() => ({ provider: "nvidia", id: "meta/llama-3.1-8b-instruct" })),
       hasConfiguredAuth: vi.fn(() => true),
@@ -222,6 +243,8 @@ describe("session command approvals", () => {
     const handlers = createExtension();
     const toolCall = handlers.get("tool_call")!;
     const ctx = createContext("Cancel");
+    await handlers.get("session_start")!({}, ctx);
+    await handlers.get("command:approvals")!("on", ctx);
     (ctx.ui as any).theme = {
       fg: (color: string, text: string) => `<${color}>${text}</${color}>`,
     };

@@ -1,6 +1,6 @@
 # Session command approvals
 
-A vendored Pi extension that requires an explicit, session-only approval for non-read-only Bash commands.
+A vendored Pi extension that can require an explicit, session-only approval for non-read-only Bash commands.
 
 ## Behaviour
 
@@ -14,7 +14,7 @@ A vendored Pi extension that requires an explicit, session-only approval for non
 - Dangerous commands require a one-time confirmation and cannot receive a reusable scope.
 - Non-read-only commands receive a safety score. Scores are cached for the session. As an experiment, scores at or above the configured threshold auto-approve; scores below it, unavailable scores, and dangerous commands still require confirmation. Hard policy gates remain independent.
 - Approvals clear on session start, reload, or restart.
-- Use `/approvals off` to bypass this extension’s prompts and scoring for the current session. Use `/approvals on` to restore them. The bypass is in memory only; separate hard-deny policy rules remain active.
+- Approvals are disabled by default at session start. Pi warns about this; use `/approvals on` to enable this extension’s prompts and scoring. Use `/approvals off` to disable them again. The setting is in memory only; separate hard-deny policy rules remain active.
 
 ## Safety scorer configuration
 

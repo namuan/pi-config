@@ -225,7 +225,7 @@ export default function (pi: ExtensionAPI) {
   const sessionApprovals: SessionApprovalScope[] = [];
   const safetyRatings = new Map<string, SafetyRating | undefined>();
   let globalApprovals: SessionApprovalScope[] = [];
-  let approvalsDisabled = false;
+  let approvalsDisabled = true;
 
   pi.registerCommand("approvals", {
     description: "Enable or disable session command approvals",
@@ -248,9 +248,15 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.on("session_start", () => {
+  pi.on("session_start", (_event, ctx) => {
     sessionApprovals.length = 0;
-    approvalsDisabled = false;
+    approvalsDisabled = true;
+    if (ctx.hasUI) {
+      ctx.ui.notify(
+        "Command approvals are disabled for this session by default. Use /approvals on to enable them.",
+        "warning",
+      );
+    }
     safetyRatings.clear();
     globalApprovals = loadGlobalCommandApprovals().map((approval) => ({
       kind: approval.kind,
