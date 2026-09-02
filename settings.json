@@ -1,6 +1,6 @@
 {
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
+  "defaultProvider": "opencode",
+  "defaultModel": "muse-spark-1.2-contributor-free",
   "theme": "light",
   "defaultThinkingLevel": "high",
   "commandSafety": {
@@ -11,20 +11,15 @@
   "commandApprovals": [
     {
       "kind": "exact",
-      "tokens": [
-        "npm",
-        "run",
-        "test:e2e"
-      ]
+      "tokens": ["npm", "run", "test:e2e"]
     }
   ],
   "enabledModels": [
-    "opencode-go/deepseek-v4-flash:max",
     "openai-codex/gpt-5.6-sol:high",
     "openai-codex/gpt-5.6-terra:high",
     "openai-codex/gpt-5.6-luna:high"
   ],
   "packages": [],
   "hideThinkingBlock": false,
-  "lastChangelogVersion": "0.84.2"
+  "lastChangelogVersion": "0.84.3"
 }
