@@ -8,12 +8,6 @@
     "model": "meta/llama-3.1-8b-instruct",
     "autoApproveScore": 70
   },
-  "commandApprovals": [
-    {
-      "kind": "exact",
-      "tokens": ["npm", "run", "test:e2e"]
-    }
-  ],
   "enabledModels": [
     "openai-codex/gpt-5.6-luna:high",
     "openai-codex/gpt-5.6-terra:high",
@@ -21,5 +15,5 @@
   ],
   "packages": [],
   "hideThinkingBlock": false,
-  "lastChangelogVersion": "0.84.3"
+  "lastChangelogVersion": "0.85.0"
 }
