@@ -10,11 +10,11 @@
   },
   "enabledModels": [
     "openai-codex/gpt-6-astra:low",
-    "openai-codex/gpt-5.6-luna:high",
+    "openai-codex/gpt-6-luna:high",
     "openai-codex/gpt-5.6-terra:high",
-    "openai-codex/gpt-5.6-sol:high"
+    "openai-codex/gpt-6-sol:high"
   ],
   "packages": [],
   "hideThinkingBlock": false,
-  "lastChangelogVersion": "0.85.1"
+  "lastChangelogVersion": "0.86.1"
 }
