@@ -12,9 +12,10 @@
     "openai-codex/gpt-6-astra:low",
     "openai-codex/gpt-6-luna:high",
     "openai-codex/gpt-5.6-terra:high",
-    "openai-codex/gpt-6-sol:high"
+    "openai-codex/gpt-6-sol:high",
+    "openrouter-proxy/openrouter-proxy-model"
   ],
   "packages": [],
   "hideThinkingBlock": false,
-  "lastChangelogVersion": "0.86.1"
+  "lastChangelogVersion": "0.87.1"
 }
