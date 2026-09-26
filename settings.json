@@ -9,11 +9,11 @@
     "autoApproveScore": 70
   },
   "enabledModels": [
-    "openai-codex/gpt-6-astra:low",
     "openai-codex/gpt-6-luna:high",
     "openai-codex/gpt-5.6-terra:high",
     "openai-codex/gpt-6-sol:high",
-    "openrouter-proxy/openrouter-proxy-model"
+    "openrouter-proxy/openrouter-proxy-model",
+    "openai-codex/gpt-6-astra:low"
   ],
   "packages": [],
   "hideThinkingBlock": false,
