@@ -15,7 +15,14 @@
     "openrouter-proxy/openrouter-proxy-model",
     "openai-codex/gpt-6-astra:low"
   ],
-  "packages": [],
+  "packages": [
+    {
+      "source": "./vendor/pringled-pi-extensions/packages/pi-polish"
+    },
+    {
+      "source": "./vendor/pringled-pi-extensions/packages/pi-background"
+    }
+  ],
   "hideThinkingBlock": false,
   "lastChangelogVersion": "0.87.1"
 }
