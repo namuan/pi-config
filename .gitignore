@@ -3,6 +3,7 @@ auth.json
 
 # Runtime state (regenerable / machine-specific)
 sessions/
+multi-agent-sessions/
 models-store.json
 trust.json
 
