@@ -18,7 +18,8 @@ const REPEATED_ATTEMPT_LIMIT = 3;
 const FAILURE_LIMIT = 2;
 const LONG_RUNNING_TURN_LIMIT = 12;
 
-function isScoutPrompt(text: string): boolean {
+function isScoutPrompt(text: unknown): boolean {
+	if (typeof text !== "string") return false;
 	return text.startsWith("/axiom-scout") || text.includes("You are the user-facing Axiom orchestrator");
 }
 
