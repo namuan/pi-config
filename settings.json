@@ -1,6 +1,6 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-luna",
+  "defaultModel": "gpt-6-luna",
   "theme": "light",
   "defaultThinkingLevel": "high",
   "commandSafety": {
@@ -10,10 +10,9 @@
   },
   "enabledModels": [
     "openai-codex/gpt-6-luna:high",
-    "openai-codex/gpt-5.6-terra:high",
-    "openai-codex/gpt-6-sol:high",
-    "openrouter-proxy/openrouter-proxy-model",
-    "openai-codex/gpt-6-astra:low"
+    "openai-codex/gpt-6.1-terra:high",
+    "openai-codex/gpt-6.1-sol:high",
+    "openrouter-proxy/openrouter-proxy-model"
   ],
   "packages": [
     {
